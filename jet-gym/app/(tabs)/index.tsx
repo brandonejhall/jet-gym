@@ -1,74 +1,101 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AnalyticsWidget from '../../components/AnalyticsWidget';
+import WeeklyStreak from '../../components/WeeklyStreak';
+import Sidebar from '../../components/Sidebar';
+import { router } from 'expo-router';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const mockLastWorkout = {
+  totalSets: 24,
+  totalReps: 280,
+  name: "Upper Body Power",
+  date: "March 17, 2024"
+};
+
+const mockCompletedDays = [0, 2, 4]; // M, W, F completed
+const mockCurrentStreak = 3;
 
 export default function HomeScreen() {
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Hello, Alex</Text>
+            <Text style={styles.subGreeting}>Ready for today's workout?</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setSidebarVisible(true)}
+            style={styles.menuButton}
+          >
+            <MaterialCommunityIcons name="menu" size={24} color="#2c3e50" />
+          </TouchableOpacity>
+        </View>
+
+        <AnalyticsWidget lastWorkout={mockLastWorkout} />
+        <WeeklyStreak completedDays={mockCompletedDays} currentStreak={mockCurrentStreak} />
+        
+        <TouchableOpacity 
+          style={styles.startButton}
+          onPress={() => router.push('/workouts')}
+        >
+          <Text style={styles.startButtonText}>Start Workout</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Sidebar 
+        visible={sidebarVisible}
+        onClose={() => setSidebarVisible(false)}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  menuButton: {
+    padding: 8,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  content: {
+    flex: 1,
+    paddingTop: 20,
+  },
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  greeting: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#2c3e50',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  subGreeting: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    marginTop: 4,
+  },
+  startButton: {
+    backgroundColor: '#3498db',
+    marginHorizontal: 16,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 'auto',
+    marginBottom: 20,
+  },
+  startButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });
