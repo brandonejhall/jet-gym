@@ -31,7 +31,7 @@ public class Workout {
     private String notes;
 
     @Column(nullable = true)
-    private String duration;
+    private Integer duration;
 
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Exercise> exercises;

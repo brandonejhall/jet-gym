@@ -223,7 +223,7 @@ public class WorkoutServiceImplementation implements WorkoutService {
         // was set
         if (workout.getStartTime() != null && workout.getDuration() == null) {
             long durationMinutes = java.time.Duration.between(workout.getStartTime(), endTime).toMinutes();
-            workout.setDuration(Long.toString(durationMinutes));
+            workout.setDuration((int)durationMinutes);
         }
 
         return wMapper.toDTO(wRepo.save(workout));
@@ -288,7 +288,7 @@ public class WorkoutServiceImplementation implements WorkoutService {
             throw new AccessDeniedException("User is not allowed to modify this workout");
         }
 
-        workout.setDuration(duration.toString());
+        workout.setDuration(duration);
         return wMapper.toDTO(wRepo.save(workout));
     }
 
@@ -344,7 +344,7 @@ public class WorkoutServiceImplementation implements WorkoutService {
                 .filter(w -> w.getDuration() != null)
                 .mapToInt(w -> {
                     try {
-                        return Integer.parseInt(w.getDuration());
+                        return w.getDuration();
                     } catch (NumberFormatException e) {
                         return 0;
                     }
@@ -358,7 +358,7 @@ public class WorkoutServiceImplementation implements WorkoutService {
                 .filter(w -> w.getDuration() != null)
                 .mapToInt(w -> {
                     try {
-                        return Integer.parseInt(w.getDuration());
+                        return w.getDuration();
                     } catch (NumberFormatException e) {
                         return 0;
                     }

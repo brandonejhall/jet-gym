@@ -18,7 +18,7 @@ public class WorkoutDTO {
     private Long userId; // foreign key reference to User
     private String name;
     private String notes;
-    private String duration;
+    private Integer duration;
     private LocalDate date;
     private LocalDateTime startTime;
     private LocalDateTime endTime;

@@ -1,0 +1,47 @@
+# Global OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# FRONTEND
+FRONTEND/node_modules/
+FRONTEND/build/
+FRONTEND/dist/
+FRONTEND/.env
+FRONTEND/.env.local
+FRONTEND/.env.development.local
+FRONTEND/.env.test.local
+FRONTEND/.env.production.local
+FRONTEND/npm-debug.log*
+FRONTEND/yarn-debug.log*
+FRONTEND/yarn-error.log*
+FRONTEND/.expo/
+FRONTEND/.expo-shared/
+
+# BACKEND
+BACKEND/target/
+BACKEND/!.mvn/wrapper/maven-wrapper.jar
+BACKEND/!**/src/main/**/target/
+BACKEND/!**/src/test/**/target/
+BACKEND/.apt_generated
+BACKEND/.classpath
+BACKEND/.factorypath
+BACKEND/.project
+BACKEND/.settings
+BACKEND/.springBeans
+BACKEND/.sts4-cache
+BACKEND/application.properties
+BACKEND/application.yml
+
+# IDEs and editors
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+*.swp
+*.swo
