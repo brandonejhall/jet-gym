@@ -1,104 +1,195 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Dimensions,
+  Animated,
+  TouchableOpacity,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, { FadeInRight } from 'react-native-reanimated';
-import { TimeFilter, AIInsight, AIInsightsSectionProps, AIInsightIcon } from '../../../types';
+import ConsistencyInsight from './Insights/ConsistencyInsight';
+import ProgressInsight from './Insights/ProgressInsight';
+import RecoveryInsight from './Insights/RecoveryInsight';
+import { MuscleGroupStatus } from '@/types/analytics';
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = SCREEN_WIDTH - 32;
 
-const CARD_WIDTH = Dimensions.get('window').width * 0.8;
-
+// Mock data for testing
+const mockData = {
+  consistencyInsight: {
+    title: "Consistency Report",
+    summary: "You've maintained a consistent 4-day workout pattern for 3 weeks straight.",
+    percentile: 15,
+    streakDays: 21,
+    patternFindings: "When you miss Mondays, you're 70% more likely to skip Tuesday as well.",
+    recommendation: "Try scheduling a shorter backup workout for Monday evenings.",
+    weeklyFrequency: [4, 4, 4, 3, 4, 4, 4],
+    consistencyScore: 92
+  },
+  progressInsight: {
+    title: "Progressive Overload",
+    summary: "Strong progress in squats, plateau detected in bench press.",
+    keyExercises: [
+      {
+        id: 1,
+        name: "Squat",
+        trend: "increasing",
+        weeklyWeights: [185, 190, 195, 200, 205],
+        progressRate: 5,
+        frequency: 3,
+        improvement: 20,
+        lastWeight: 205
+      },
+      {
+        id: 2,
+        name: "Bench Press",
+        trend: "plateau",
+        weeklyWeights: [165, 170, 170, 170],
+        progressRate: 0,
+        frequency: 3,
+        improvement: 0,
+        lastWeight: 170
+      }
+    ],
+    recommendation: "Consider varying your rep ranges."
+  },
+  recoveryInsight: {
+    title: "Recovery & Balance",
+    summary: "Training volume increased but rest days decreased.",
+    volumeChange: 30,
+    restDaysChange: -50,
+    muscleGroups: [
+      { name: "Chest", status: "overworked", warning: true },
+      { name: "Back", status: "optimal", warning: false },
+      { name: "Legs", status: "underworked", warning: true }
+    ] as MuscleGroupStatus[],
+    recommendation: "Add an additional recovery day between chest workouts.",
+    restDayDistribution: [1, 0, 1, 0, 0, 0, 1]
+  }
+};
 const insights = [
-  {
-    id: '1',
-    title: 'Workout Consistency',
-    observation: 'You workout most consistently on Mondays and Wednesdays',
-    recommendation: 'Consider adding a Friday session to optimize your routine',
-    icon: 'calendar-check',
-    color: '#3498db',
-  },
-  {
-    id: '2',
-    title: 'Strength Progress',
-    observation: 'Your bench press has increased 15% in the last month',
-    recommendation: 'You might be ready to increase weight by 5-10 lbs',
-    icon: 'trending-up',
-    color: '#2ecc71',
-  },
-  {
-    id: '3',
-    title: 'Recovery Pattern',
-    observation: 'You perform better with 48h rest between chest workouts',
-    recommendation: 'Maintain this rest pattern for optimal gains',
-    icon: 'battery-charging',
-    color: '#e74c3c',
-  },
-  {
-    id: '4',
-    title: 'Muscle Balance',
-    observation: 'Lower body exercises are 20% below target ratio',
-    recommendation: 'Add more leg-focused exercises to your routine',
-    icon: 'scale-balance',
-    color: '#9b59b6',
-  },
+  { key: 'consistency', component: ConsistencyInsight, data: mockData.consistencyInsight },
+  { key: 'progress', component: ProgressInsight, data: mockData.progressInsight },
+  { key: 'recovery', component: RecoveryInsight, data: mockData.recoveryInsight },
 ];
 
-interface InsightCardProps {
-  insight: typeof insights[0];
-  index: number;
-}
+export default function AIInsightsSection() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollX = useRef(new Animated.Value(0)).current;
 
-const getIcon = (icon: AIInsightIcon): AIInsightIcon => icon;
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+    { useNativeDriver: false }
+  );
 
-const InsightCard = ({ insight, index }: InsightCardProps) => (
-  <Animated.View 
-    entering={FadeInRight.delay(index * 100)}
-    style={[styles.insightCard, { borderLeftColor: insight.color }]}
-  >
-    <View style={styles.insightHeader}>
-      <MaterialCommunityIcons 
-        name={getIcon(insight.icon)} 
-        size={24} 
-        color={insight.color} 
-      />
-      <Text style={styles.insightTitle}>{insight.title}</Text>
-    </View>
-    <Text style={styles.observation}>{insight.observation}</Text>
-    <View style={styles.recommendationContainer}>
-      <MaterialCommunityIcons name="lightbulb-on" size={16} color="#f39c12" />
-      <Text style={styles.recommendation}>{insight.recommendation}</Text>
-    </View>
-  </Animated.View>
-);
+  const handleScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const position = event.nativeEvent.contentOffset.x;
+    const index = Math.round(position / CARD_WIDTH);
+    setActiveIndex(index);
+  };
 
-export default function AIInsightsSection({ timeFilter, insights }: AIInsightsSectionProps) {
+  const scrollToIndex = (index: number) => {
+    scrollViewRef.current?.scrollTo({
+      x: index * CARD_WIDTH,
+      animated: true,
+    });
+    setActiveIndex(index);
+  };
+
+
   return (
     <View style={styles.container}>
-      <View style={styles.sectionHeader}>
+      <View style={styles.header}>
         <View style={styles.titleContainer}>
           <MaterialCommunityIcons name="robot" size={24} color="#3498db" />
           <Text style={styles.sectionTitle}>JetGym AI Insights</Text>
         </View>
-        <TouchableOpacity style={styles.viewAllButton}>
-          <Text style={styles.viewAllText}>View All</Text>
-          <MaterialCommunityIcons name="chevron-right" size={20} color="#3498db" />
-        </TouchableOpacity>
+        <View style={styles.navigationButtons}>
+          <TouchableOpacity 
+            style={[styles.navButton, activeIndex === 0 && styles.navButtonDisabled]}
+            onPress={() => scrollToIndex(activeIndex - 1)}
+            disabled={activeIndex === 0}
+          >
+            <MaterialCommunityIcons 
+              name="chevron-left" 
+              size={24} 
+              color={activeIndex === 0 ? "#bdc3c7" : "#3498db"} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.navButton, activeIndex === insights.length - 1 && styles.navButtonDisabled]}
+            onPress={() => scrollToIndex(activeIndex + 1)}
+            disabled={activeIndex === insights.length - 1}
+          >
+            <MaterialCommunityIcons 
+              name="chevron-right" 
+              size={24} 
+              color={activeIndex === insights.length - 1 ? "#bdc3c7" : "#3498db"} 
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         horizontal
+        pagingEnabled
         showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
+        onMomentumScrollEnd={handleScrollEnd}
+        scrollEventThrottle={16}
+        decelerationRate="fast"
+        snapToInterval={CARD_WIDTH}
+        snapToAlignment="center"
         contentContainerStyle={styles.scrollContent}
       >
         {insights.map((insight, index) => (
-          <InsightCard key={insight.id} insight={insight} index={index} />
+          <View key={insight.key} style={styles.insightContainer}>
+            <insight.component data={insight.data} />
+          </View>
         ))}
       </ScrollView>
+
+      <View style={styles.pagination}>
+        {insights.map((_, index) => (
+          <TouchableOpacity
+            key={index}
+            onPress={() => scrollToIndex(index)}
+            style={styles.paginationDotContainer}
+          >
+            <Animated.View style={[
+              styles.paginationDot,
+              {
+                opacity: scrollX.interpolate({
+                  inputRange: [
+                    (index - 1) * CARD_WIDTH,
+                    index * CARD_WIDTH,
+                    (index + 1) * CARD_WIDTH,
+                  ],
+                  outputRange: [0.4, 1, 0.4],
+                  extrapolate: 'clamp',
+                }),
+                transform: [{
+                  scale: scrollX.interpolate({
+                    inputRange: [
+                      (index - 1) * CARD_WIDTH,
+                      index * CARD_WIDTH,
+                      (index + 1) * CARD_WIDTH,
+                    ],
+                    outputRange: [1, 1.25, 1],
+                    extrapolate: 'clamp',
+                  }),
+                }],
+              },
+            ]} />
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 }
@@ -107,7 +198,7 @@ const styles = StyleSheet.create({
   container: {
     marginVertical: 16,
   },
-  sectionHeader: {
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -124,58 +215,37 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     marginLeft: 8,
   },
-  viewAllButton: {
+  navigationButtons: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  viewAllText: {
-    color: '#3498db',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  scrollContent: {
-    paddingHorizontal: 12,
-  },
-  insightCard: {
-    width: CARD_WIDTH,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 4,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  insightTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
+  navButton: {
+    padding: 8,
     marginLeft: 8,
   },
-  observation: {
-    fontSize: 14,
-    color: '#34495e',
-    marginBottom: 12,
+  navButtonDisabled: {
+    opacity: 0.5,
   },
-  recommendationContainer: {
+  scrollContent: {
+    paddingHorizontal: 16,
+  },
+  insightContainer: {
+    width: CARD_WIDTH,
+  },
+  pagination: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff9e6',
-    padding: 8,
-    borderRadius: 8,
+    marginTop: 16,
   },
-  recommendation: {
-    fontSize: 13,
-    color: '#34495e',
-    marginLeft: 6,
-    flex: 1,
+  paginationDotContainer: {
+    padding: 8,
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#3498db',
+    marginHorizontal: 4,
   },
 });

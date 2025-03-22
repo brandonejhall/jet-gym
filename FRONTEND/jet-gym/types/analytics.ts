@@ -34,12 +34,14 @@ export type TimeFilter = 'week' | 'month' | 'year' | 'all';
 export type TrendDirection = 'up' | 'down' | 'stable';
 
 export interface ExerciseProgress {
-  id: string;
+  id: number;
   name: string;
+  trend: string;
+  weeklyWeights: number[];
+  progressRate: number;
   frequency: number;
   improvement: number;
-  lastWeight: string;
-  trend: TrendDirection;
+  lastWeight: number;
 }
 
 export interface AIInsightsSectionProps {
@@ -90,3 +92,55 @@ export type AIInsightIcon =
   | 'calendar-check'
   | 'scale-balance'
   | 'battery-charging';
+
+export interface ConsistencyInsight {
+  title: string;
+  summary: string;
+  percentile: number;
+  streakDays: number;
+  patternFindings: string;
+  recommendation: string;
+  weeklyFrequency: number[];
+  consistencyScore: number;
+}
+
+export interface ProgressInsight {
+  title: string;
+  summary: string;
+  keyExercises: ExerciseProgress[];
+  recommendation: string;
+}
+
+export type MuscleStatus = "overworked" | "optimal" | "underworked";
+
+export interface MuscleGroupStatus {
+  name: string;
+  status: MuscleStatus;
+  warning: boolean;
+}
+
+export interface RecoveryInsight {
+  title: string;
+  summary: string;
+  volumeChange: number;
+  restDaysChange: number;
+  muscleGroups: MuscleGroupStatus[];
+  recommendation: string;
+  restDayDistribution: number[];
+}
+
+interface InsightComponentMap {
+  consistency: { data: ConsistencyInsight };
+  progress: { data: ProgressInsight };
+  recovery: { data: RecoveryInsight };
+}
+
+export interface InsightComponent {
+  key: keyof InsightComponentMap;
+  component: React.ComponentType<InsightComponentMap[keyof InsightComponentMap]>;
+  data: InsightComponentMap[keyof InsightComponentMap]['data'];
+}
+
+
+
+
