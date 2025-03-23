@@ -4,3 +4,39 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+
+# macOS
+.DS_Store
+
+# iOS
+*.xcworkspace
+*.xcuserdata
+*.xccheckout
+*.pbx
+
+
+# Android
+*.apk
+*.aar
+*.jar
+*.dex
+*.class
+*.so
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Expo
