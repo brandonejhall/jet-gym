@@ -1,11 +1,12 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AnalyticsWidget from '../../components/AnalyticsWidget';
 import WeeklyStreak from '../../components/WeeklyStreak';
 import Sidebar from '../../components/Sidebar';
 import { router } from 'expo-router';
+import { workoutService } from '../../api/services/workout';
 
 const mockLastWorkout = {
   totalSets: 24,
@@ -19,6 +20,39 @@ const mockCurrentStreak = 3;
 
 export default function HomeScreen() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [lastWorkout, setLastWorkout] = useState(mockLastWorkout);
+  const [loading, setLoading] = useState(false);
+  const userId = 'current-user-id'; // You'll need to get this from your auth context
+
+  const loadLastWorkout = async () => {
+    try {
+      setLoading(true);
+      const workouts = await workoutService.getUserWorkouts(userId);
+      if (workouts && workouts.length > 0) {
+        const latest = workouts[0];
+        setLastWorkout({
+          totalSets: latest.exercises?.reduce((acc, ex) => acc + (ex.sets?.length || 0), 0) || 0,
+          totalReps: latest.exercises?.reduce((acc, ex) => 
+            acc + (ex.sets?.reduce((s, set) => s + set.value, 0) || 0), 0) || 0,
+          name: latest.name,
+          date: new Date(latest.date).toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+          })
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load last workout:', error);
+      setLastWorkout(mockLastWorkout); // Fallback to mock data
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLastWorkout();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -36,7 +70,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <AnalyticsWidget lastWorkout={mockLastWorkout} />
+        <AnalyticsWidget lastWorkout={lastWorkout} />
         <WeeklyStreak completedDays={mockCompletedDays} currentStreak={mockCurrentStreak} />
         
         <TouchableOpacity 

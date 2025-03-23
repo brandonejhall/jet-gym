@@ -17,6 +17,8 @@ import AuthSocialButtons from '../../components/auth/AuthSocialButtons';
 import AuthInput from '../../components/auth/AuthInput';
 import { useNavigation } from '@react-navigation/native';
 import { router } from 'expo-router';
+import { authService } from '../../api/services/auth';
+
 export default function Signin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,11 +29,21 @@ export default function Signin() {
 
   const handleSignIn = async () => {
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await authService.login({
+        email,
+        password
+      });
+      
+      if (response) {
+        router.push('/(tabs)');
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+      // Add error handling here (e.g., show error message to user)
+    } finally {
       setLoading(false);
-      router.push('/(tabs)');
-    }, 1500);
+    }
   };
 
   return (
