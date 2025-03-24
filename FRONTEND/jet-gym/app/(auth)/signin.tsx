@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { API_URL } from '@/api/config';
 import { BlurView } from 'expo-blur';
 import AuthSocialButtons from '../../components/auth/AuthSocialButtons';
 import AuthInput from '../../components/auth/AuthInput';

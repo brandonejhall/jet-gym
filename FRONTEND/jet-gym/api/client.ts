@@ -1,6 +1,6 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from './config';
+import { CacheService } from './services/cacheservice';
 
 // Create axios instance
 const api = axios.create({
@@ -13,7 +13,7 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem('token');
+    const token = await CacheService.getItem<string>('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
@@ -26,7 +26,7 @@ api.interceptors.response.use(
   async (error) => {
     // Handle 401 (Unauthorized)
     if (error.response?.status === 401) {
-      await AsyncStorage.removeItem('token');
+      await CacheService.removeItem('token');
       // Handle navigation to login if needed
     }
     return Promise.reject(error.response?.data || error.message);
