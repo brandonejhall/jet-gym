@@ -16,12 +16,14 @@ import SignUpStep1 from '../../components/auth/SignUpStep1';
 import SignUpStep2 from '../../components/auth/SignUpStep2';
 import SignUpStep3 from '../../components/auth/SignUpStep3';
 import ProgressSteps from '../../components/auth/ProgressSteps';
+import { authService } from '../../api/services/auth';
+import { useRouter } from 'expo-router';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function Signup() {
   const [currentStep, setCurrentStep] = useState(1);
-const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const [formData, setFormData] = useState({
     // Step 1
     fullName: '',
@@ -44,6 +46,8 @@ const scrollViewRef = useRef<ScrollView>(null);
     equipment: '',
   });
 
+  const router = useRouter();
+
   const handleNext = () => {
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
@@ -65,8 +69,32 @@ const scrollViewRef = useRef<ScrollView>(null);
   };
 
   const handleSubmit = async () => {
-    // Handle form submission
-    console.log('Form submitted:', formData);
+    try {
+      const response = await authService.register({
+        email: formData.email,
+        password: formData.password,
+        fullName: formData.fullName,
+        // Add other relevant registration data
+        profile: {
+          birthdate: formData.birthdate,
+          gender: formData.gender,
+          height: parseFloat(formData.height),
+          weight: parseFloat(formData.weight),
+          experienceLevel: formData.experienceLevel,
+          fitnessGoal: formData.fitnessGoal,
+          weeklyFrequency: parseInt(formData.weeklyFrequency),
+          workoutDuration: formData.workoutDuration,
+          equipment: formData.equipment,
+        }
+      });
+
+      if (response) {
+        router.push('/(tabs)');
+      }
+    } catch (error) {
+      console.error('Registration failed:', error);
+      // Add error handling here
+    }
   };
 
   const updateFormData = (newData) => {

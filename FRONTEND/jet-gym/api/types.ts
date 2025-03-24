@@ -13,28 +13,36 @@ export interface LoginRequest {
   }
 
 export interface WorkoutDTO {
-  id?: string;
-  userId: string;
+  id?: number;
+  userId: number;
   name: string;
+  notes: string;
+  duration: number;
   date: string;
+  startTime: string;
+  endTime: string;
+  completed: boolean;
   exercises?: ExerciseDTO[];
 }
 
 export interface WorkoutUpdateDTO {
-  workoutId: string;
-  userId: string;
+  workoutId: number;
+  userId: number;
   workoutDTO: WorkoutDTO;
 }
 
 export interface WorkoutDeleteDTO {
-  userId: string;
-  workoutId: string;
+  userId: number;
+  workoutId: number;
 }
 
 export interface ExerciseDTO {
-  id?: string;
-  workoutId: string;
+  id?: number;
+  workoutId: number;
   name: string;
+  muscleGroup: string;
+  canonicalName: string;
+  normalizedName: string;
   sets?: ExerciseSetDTO[];
 }
 
@@ -54,17 +62,17 @@ export interface ExerciseDeleteDTO {
 }
 
 export interface ExerciseSuggestionDTO {
-  id: string;
   name: string;
-  type?: string;
-  muscleGroup?: string;
+  canonicalName: string;
+  isHistorical: boolean;
 }
 
 export interface ExerciseSetDTO {
-  id?: string;
-  exerciseId: string;
+  id?: number;
+  exerciseId: number;
+  value: number;
+  isTimeBased: boolean;
   weight: number;
-  reps: number;
   completed: boolean;
 }
 
