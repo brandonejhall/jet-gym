@@ -7,6 +7,9 @@ import com.ephyris.ephyris_engine.DataTransferObject.WorkoutDTO;
 import com.ephyris.ephyris_engine.Entity.Workout;
 import com.ephyris.ephyris_engine.Repository.WorkoutRepository;
 import com.ephyris.ephyris_engine.Service.WorkoutService;
+
+import jakarta.persistence.criteria.CriteriaBuilder.Case;
+
 import com.ephyris.ephyris_engine.Mapper.WorkoutMapper;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +17,7 @@ import java.nio.file.AccessDeniedException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +26,7 @@ import java.util.stream.Collectors;
 import java.util.HashMap;
 import java.util.Locale;
 import java.time.format.TextStyle;
+import java.time.temporal.WeekFields;
 
 @Service
 public class WorkoutServiceImplementation implements WorkoutService {
@@ -223,7 +228,7 @@ public class WorkoutServiceImplementation implements WorkoutService {
         // was set
         if (workout.getStartTime() != null && workout.getDuration() == null) {
             long durationMinutes = java.time.Duration.between(workout.getStartTime(), endTime).toMinutes();
-            workout.setDuration((int)durationMinutes);
+            workout.setDuration((int) durationMinutes);
         }
 
         return wMapper.toDTO(wRepo.save(workout));
@@ -390,4 +395,53 @@ public class WorkoutServiceImplementation implements WorkoutService {
 
         return statistics;
     }
+
+    @Override
+    public List<WorkoutDTO> getWorkoutsByPeriod(Long userId, String period) throws AccessDeniedException {
+
+        LocalDate today = LocalDate.now();
+
+        List<WorkoutDTO> workouts = new ArrayList<>();
+
+        if (userId == null || period == null) {
+            throw new IllegalArgumentException("Invalid input data");
+        }
+
+        LocalDate startDate = LocalDate.now();
+        LocalDate endDate = LocalDate.now();
+
+        switch (period) {
+            case "day" -> {
+                startDate = today;
+                endDate = today;
+                workouts = getWorkoutsByDateRange(userId, startDate, endDate);
+            }
+            case "week" -> {
+                WeekFields weekFields = WeekFields.of(Locale.UK);
+                LocalDate startOfWeek = today.with(weekFields.dayOfWeek(), 1); // Monday
+                LocalDate endOfWeek = today.with(weekFields.dayOfWeek(), 7);
+                workouts = getWorkoutsByDateRange(userId, startOfWeek, endOfWeek);
+            }
+            case "month" -> {
+                startDate = today.withDayOfMonth(1);
+                endDate = today.withDayOfMonth(today.lengthOfMonth());
+                workouts = getWorkoutsByDateRange(userId, startDate, endDate);
+            }
+            case "year" -> {
+                startDate = today.withDayOfYear(1);
+                endDate = today.withDayOfYear(today.lengthOfYear());
+                workouts = getWorkoutsByDateRange(userId, startDate, endDate);
+            }
+            case "all" -> {
+                workouts = getWorkoutsByUserId(userId);
+            }
+            default -> {
+                throw new IllegalArgumentException("Invalid period");
+            }
+        }
+
+        return workouts;
+
+    }
+
 }

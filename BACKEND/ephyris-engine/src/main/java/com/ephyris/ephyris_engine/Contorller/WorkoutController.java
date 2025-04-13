@@ -57,6 +57,13 @@ public class WorkoutController {
         return new ResponseEntity<Object>(workouts, HttpStatus.OK);
     }
 
+    @GetMapping("/userWorkouts/{id}/{period}")
+    public ResponseEntity<Object> getUserWorkoutsByPeriod(@PathVariable Long id, @PathVariable String period)
+            throws AccessDeniedException {
+        List<WorkoutDTO> workouts = workoutService.getWorkoutsByPeriod(id, period);
+        return new ResponseEntity<Object>(workouts, HttpStatus.OK);
+    }
+
     @DeleteMapping("/deleteWorkout")
     public ResponseEntity<Object> deleteWorkout(@RequestBody WorkoutDeleteDTO workoutDelete)
             throws AccessDeniedException {
