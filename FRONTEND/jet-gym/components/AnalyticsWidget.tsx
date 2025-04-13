@@ -8,13 +8,17 @@ export default function AnalyticsWidget({ lastWorkout }) {
       <View style={styles.statsGrid}>
         <View style={styles.statItem}>
           <MaterialCommunityIcons name="dumbbell" size={24} color="#3498db" />
-          <Text style={styles.statValue}>{lastWorkout.totalSets}</Text>
-          <Text style={styles.statLabel}>Sets</Text>
+          <View style={styles.statValueContainer}>
+            <Text style={styles.statValue}>{lastWorkout.totalSets}</Text>
+            <Text style={styles.statLabel}>Sets</Text>
+          </View>
         </View>
         <View style={styles.statItem}>
           <MaterialCommunityIcons name="repeat" size={24} color="#3498db" />
-          <Text style={styles.statValue}>{lastWorkout.totalReps}</Text>
-          <Text style={styles.statLabel}>Reps</Text>
+          <View style={styles.statValueContainer}>
+            <Text style={styles.statValue}>{lastWorkout.totalReps}</Text>
+            <Text style={styles.statLabel}>Reps</Text>
+          </View>
         </View>
       </View>
       <View style={styles.workoutInfo}>
@@ -51,12 +55,18 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
+    flexDirection: 'row',
   },
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#2c3e50',
     marginTop: 8,
+  },
+  statValueContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    paddingLeft: 10,
   },
   statLabel: {
     fontSize: 14,
@@ -67,6 +77,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     paddingTop: 16,
+    justifyContent: 'space-between',
+    flexDirection: 'row',
   },
   workoutName: {
     fontSize: 16,
