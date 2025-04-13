@@ -78,7 +78,11 @@ export default function HomeScreen() {
             const workoutDate = new Date(workout.date);
             return workoutDate >= lastMonday && workout.completed;
           })
-          .map(workout => new Date(workout.date).getDay());
+          .map(workout => {
+            // Convert Sunday = 0 to Sunday = 6, and shift all other days back by 1
+            const day = new Date(workout.date).getDay();
+            return day === 0 ? 6 : day - 1;
+          });
         setCompletedDays(completedDays);
         
         // Calculate current streak
