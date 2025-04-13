@@ -9,6 +9,8 @@ import { router } from 'expo-router';
 import { CacheService } from '@/api/services/cacheservice';
 import { UserData, WorkoutDTO } from '@/api/types';
 import { authService } from '../../api/services/auth';
+import ActivityHeatmap from '../../components/ActivityHeatmap';
+import MonthlyWorkoutCalendar from '../../components/MonthlyWorkoutCalendar';
 
 const emptyWorkoutData = {
   totalSets: 0,
@@ -130,6 +132,7 @@ export default function HomeScreen() {
 
         <AnalyticsWidget lastWorkout={lastWorkout} />
         <WeeklyStreak completedDays={completedDays} currentStreak={currentStreak} />
+        <MonthlyWorkoutCalendar />
         
         <TouchableOpacity 
           style={styles.startButton}
