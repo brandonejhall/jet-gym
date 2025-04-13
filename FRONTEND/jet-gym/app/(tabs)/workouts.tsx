@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,89 +10,26 @@ import { Workout, TimeFilter as TimeFilterType } from '../../types';
 import { workoutService } from '../../api/services/workout';
 import { exerciseService } from '../../api/services/exercise';
 import { WorkoutDTO } from '@/api/types';
+import { CacheService } from '@/api/services/cacheservice';
 
 // Mock data structure
-const mockWorkouts: WorkoutDTO[] = [
-  {
-    id: 1,
-    userId: 1,
-    name: 'Morning Power Session',
-    date: '2024-03-17',
-    notes: '',
-    duration: 60,
-    startTime: '2024-03-17T08:00:00',
-    endTime: '2024-03-17T09:00:00',
-    completed: true,
-    exercises: [
-      {
-        id: 1,
-        workoutId: 1,
-        name: 'Bench Press',
-        muscleGroup: 'CHEST',
-        canonicalName: 'bench_press',
-        normalizedName: 'bench press',
-        sets: [
-          { id: 1, exerciseId: 1, value: 8, isTimeBased: false, weight: 185, completed: true },
-          { id: 2, exerciseId: 1, value: 8, isTimeBased: false, weight: 185, completed: true },
-        ],
-      },
-      {
-        id: 2,
-        workoutId: 1,
-        name: 'Barbell Row',
-        muscleGroup: 'BACK',
-        canonicalName: 'barbell_row',
-        normalizedName: 'barbell row',
-        sets: [
-          { id: 1, exerciseId: 2, value: 10, isTimeBased: false, weight: 165, completed: true },
-          { id: 2, exerciseId: 2, value: 10, isTimeBased: false, weight: 165, completed: true },
-          { id: 3, exerciseId: 2, value: 8, isTimeBased: false, weight: 165, completed: true },
-        ],
-      },
-    ],
-  },
-  {
-    id: 2,
-    userId: 1,
-    name: 'Leg Day',
-    date: '2024-03-15',
-    notes: '',
-    duration: 45,
-    startTime: '2024-03-15T10:00:00',
-    endTime: '2024-03-15T10:45:00',
-    completed: false,
-    exercises: [
-      {
-        id: 1,
-        workoutId: 2,
-        name: 'Squats',
-        muscleGroup: 'LEGS',
-        canonicalName: 'squats',
-        normalizedName: 'squats',
-        sets: [
-          { id: 1, exerciseId: 3, value: 8, isTimeBased: false, weight: 225, completed: true },
-          { id: 2, exerciseId: 3, value: 8, isTimeBased: false, weight: 225, completed: true },
-        ],
-      },
-    ],
-  },
-];
+
 
 export default function WorkoutManagementScreen() {
   const [timeFilter, setTimeFilter] = useState<TimeFilterType>('week');
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutDTO | null>(null);
-  const [workouts, setWorkouts] = useState<WorkoutDTO[]>(mockWorkouts);
+  const [workouts, setWorkouts] = useState<WorkoutDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const userId = 1; // Changed to number to match DTO type
 
   const loadWorkouts = async () => {
     try {
       setLoading(true);
-      const response = await workoutService.getUserWorkouts(JSON.stringify(userId));
-      setWorkouts(response || mockWorkouts);
+      const response: WorkoutDTO[] | null = await CacheService.getItem('workouts');
+      setWorkouts(response || []);
     } catch (error) {
       console.error('Failed to load workouts:', error);
-      setWorkouts(mockWorkouts);
+      setWorkouts([]);
     } finally {
       setLoading(false);
     }
@@ -137,6 +74,10 @@ export default function WorkoutManagementScreen() {
       setSelectedWorkout(mockNewWorkout);
     }
   };
+
+  useEffect(() => {
+    loadWorkouts();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
