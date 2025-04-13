@@ -5,11 +5,16 @@ export interface LoginRequest {
   
   export interface AuthResponse {
     token: string;
-    user: {
-      id: string;
-      name: string;
-      email: string;
-    };
+    userData: UserData;
+  }
+
+  export interface UserData {
+    id: string;
+    name: string;
+    email: string;
+    profileImage: string | null;
+    membershipStatus: string;
+    createdAt: string;
   }
 
 export interface WorkoutDTO {

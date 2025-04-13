@@ -73,8 +73,10 @@ export default function Signup() {
       const response = await authService.register({
         email: formData.email,
         password: formData.password,
-        fullName: formData.fullName,
+        name: formData.fullName,
+        membershipStatus: 'free',
         // Add other relevant registration data
+        /*
         profile: {
           birthdate: formData.birthdate,
           gender: formData.gender,
@@ -86,6 +88,7 @@ export default function Signup() {
           workoutDuration: formData.workoutDuration,
           equipment: formData.equipment,
         }
+        */
       });
 
       if (response) {

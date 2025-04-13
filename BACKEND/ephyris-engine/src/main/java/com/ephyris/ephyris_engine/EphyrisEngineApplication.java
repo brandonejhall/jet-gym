@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
-@ComponentScan(basePackages = {"com.ephyris.ephyris_engine"})
+@ComponentScan(basePackages = { "com.ephyris.ephyris_engine" })
 public class EphyrisEngineApplication {
 
 	public static void main(String[] args) {
