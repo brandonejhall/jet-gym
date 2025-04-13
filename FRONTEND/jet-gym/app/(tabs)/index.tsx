@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -116,7 +116,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Hello, {userData?.name}</Text>
@@ -134,13 +134,15 @@ export default function HomeScreen() {
         <WeeklyStreak completedDays={completedDays} currentStreak={currentStreak} />
         <MonthlyWorkoutCalendar />
         
-        <TouchableOpacity 
-          style={styles.startButton}
-          onPress={() => router.push('/workouts')}
-        >
-          <Text style={styles.startButtonText}>Start Workout</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity 
+            style={styles.startButton}
+            onPress={() => router.push('/workouts')}
+          >
+            <Text style={styles.startButtonText}>Start Workout</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
 
       <Sidebar 
         visible={sidebarVisible}
@@ -158,9 +160,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  content: {
+  scrollView: {
     flex: 1,
-    paddingTop: 20,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
@@ -192,5 +196,12 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
+  },
+  buttonContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  content: {
+    paddingTop: 20,
   },
 });
