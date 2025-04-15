@@ -14,4 +14,7 @@ export const workoutService = {
     
   deleteWorkout: (data: WorkoutDeleteDTO) =>
     apiClient.delete<void>(endpoints.workout.delete, data),
+
+  getWorkoutsByPeriod: (userId: string, period: string) =>
+    apiClient.get<WorkoutDTO[]>(endpoints.workout.getWorkoutsByPeriod(userId, period)),
 };

@@ -9,6 +9,7 @@ export const endpoints = {
       update: '/api/workout/update',
       getUserWorkouts: (userId: string) => `/api/workout/userWorkouts/${userId}`,
       delete: '/api/workout/deleteWorkout',
+      getWorkoutsByPeriod: (userId: string, period: string) => `/api/workout/userWorkouts/${userId}/${period}`,
     },
     exercise: {
       create: '/api/exercise/create',
