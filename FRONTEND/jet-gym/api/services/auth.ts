@@ -7,13 +7,14 @@ import { workoutService } from './workout';
 const TOKEN_CACHE_KEY = 'token';
 const USER_DATA_CACHE_KEY = 'userData';
 const WORKOUTS_CACHE_KEY = 'workouts';
-
+const USER_ID = 'userId';
 export const authService = {
     login: async (data: LoginRequest) => {
       const response = await apiClient.post<AuthResponse>(endpoints.auth.login, data);
       // Store the token and user data in cache
       await CacheService.setItem(TOKEN_CACHE_KEY, response.token);
       await CacheService.setItem(USER_DATA_CACHE_KEY, response.userData);
+      await CacheService.setItem(USER_ID, response.userData.id);
       
       // Fetch and store workouts after successful login
       const workouts = await workoutService.getUserWorkouts(response.userData.id);

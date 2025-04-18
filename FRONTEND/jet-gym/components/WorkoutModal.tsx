@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Exercise, Set, Workout } from '../../types';
+import { WorkoutDTO, ExerciseDTO, ExerciseSetDTO } from '@/api/types';
 import {
   View,
   Text,
@@ -8,19 +8,22 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { workoutService } from '../api/services/workout';
+import { CacheService } from '../api/services/cacheservice';
 
 interface ExerciseItemProps {
-  exercise: Exercise;
+  exercise: ExerciseDTO;
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
-  onUpdateExercise: (exercise: Exercise) => void;
+  onUpdateExercise: (exercise: ExerciseDTO) => void;
   onAddSet: () => void;
-  onDeleteSet: (setId: string) => void;
-  onUpdateSet: (set: Set) => void;
+  onDeleteSet: (setId: number) => void;
+  onUpdateSet: (set: ExerciseSetDTO) => void;
 }
 
 const ExerciseItem: React.FC<ExerciseItemProps> = ({
@@ -33,7 +36,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
   onDeleteSet,
   onUpdateSet,
 }) => {
-  const renderRightActions = (progress, dragX) => {
+  const renderRightActions = (progress: any, dragX: any) => {
     return (
       <TouchableOpacity
         style={styles.deleteAction}
@@ -72,16 +75,16 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
           <View style={styles.setHeader}>
             <Text style={styles.setHeaderText}>Set</Text>
             <Text style={styles.setHeaderText}>Weight</Text>
-            <Text style={styles.setHeaderText}>Reps</Text>
+            <Text style={styles.setHeaderText}>Value</Text>
           </View>
           
-          {exercise.sets.map((set, index) => (
+          {exercise.sets?.map((set: ExerciseSetDTO, index: number) => (
             <Swipeable
               key={set.id}
               renderRightActions={() => (
                 <TouchableOpacity
                   style={styles.deleteSetAction}
-                  onPress={() => onDeleteSet(set.id)}
+                  onPress={() => onDeleteSet(set.id || 0)}
                 >
                   <MaterialCommunityIcons name="delete" size={20} color="white" />
                 </TouchableOpacity>
@@ -94,15 +97,15 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
                   value={String(set.weight)}
                   keyboardType="numeric"
                   onChangeText={(text) => 
-                    onUpdateSet({ ...set, weight: parseInt(text) || 0 })
+                    onUpdateSet({ ...set, weight: parseFloat(text) || 0 })
                   }
                 />
                 <TextInput
                   style={styles.setInput}
-                  value={String(set.reps)}
+                  value={String(set.value)}
                   keyboardType="numeric"
                   onChangeText={(text) =>
-                    onUpdateSet({ ...set, reps: parseInt(text) || 0 })
+                    onUpdateSet({ ...set, value: parseInt(text) || 0 })
                   }
                 />
               </View>
@@ -124,14 +127,14 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
 
 interface WorkoutModalProps {
   visible: boolean;
-  workout: Workout | null;
+  workout: WorkoutDTO | null;
   onClose: () => void;
-  onSave: (workout: Workout) => void;
+  onSave: (workout: WorkoutDTO) => void;
 }
 
 export default function WorkoutModal({ visible, workout, onClose, onSave }: WorkoutModalProps) {
-  const [editedWorkout, setEditedWorkout] = useState(null);
-  const [expandedExercises, setExpandedExercises] = useState({});
+  const [editedWorkout, setEditedWorkout] = useState<WorkoutDTO | null>(null);
+  const [expandedExercises, setExpandedExercises] = useState<Record<number, boolean>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
@@ -142,49 +145,114 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
     }
   }, [workout]);
 
-  const toggleExercise = (exerciseId) => {
+  const toggleExercise = (exerciseId: number) => {
     setExpandedExercises(prev => ({
       ...prev,
-      [exerciseId]: !prev[exerciseId]
+      [String(exerciseId)]: !prev[exerciseId]
     }));
   };
 
   const handleAddExercise = () => {
-    const newExercise = {
-      id: String(Date.now()),
-      name: 'New Exercise',
+    if (!editedWorkout) return;
+
+    const newExercise: ExerciseDTO = {
+      id: Date.now(),
+      name: '',
       sets: [],
+      workoutId: editedWorkout.id || 0,
+      muscleGroup: '',
+      canonicalName: '',
+      normalizedName: ''
     };
+
     setEditedWorkout(prev => ({
-      ...prev,
-      exercises: [...prev.exercises, newExercise]
+      ...prev!,
+      exercises: [...(prev!.exercises || []), newExercise]
     }));
+
     setExpandedExercises(prev => ({
       ...prev,
-      [newExercise.id]: true
+      [String(newExercise.id)]: true
     }));
     setHasChanges(true);
   };
 
-  const handleAddSet = (exerciseId) => {
-    const exercise = editedWorkout.exercises.find(e => e.id === exerciseId);
-    const lastSet = exercise.sets[exercise.sets.length - 1];
-    const newSet = {
-      id: String(Date.now()),
-      weight: lastSet ? lastSet.weight : 0,
-      reps: lastSet ? lastSet.reps : 0,
+  const handleAddSet = (exerciseId: number) => {
+    if (!editedWorkout) return;
+
+    const exercise = editedWorkout.exercises?.find(e => e.id === exerciseId);
+    if (!exercise) return;
+
+    const lastSet = exercise.sets?.[exercise.sets.length - 1];
+    const newSet: ExerciseSetDTO = {
+      id: Date.now(),
+      weight: lastSet?.weight || 0,
+      value: lastSet?.value || 0,
       completed: false,
+      exerciseId: exercise.id || 0,
+      isTimeBased: false
     };
     
     setEditedWorkout(prev => ({
-      ...prev,
-      exercises: prev.exercises.map(e =>
+      ...prev!,
+      exercises: prev!.exercises?.map(e =>
         e.id === exerciseId
-          ? { ...e, sets: [...e.sets, newSet] }
+          ? { ...e, sets: [...(e.sets || []), newSet] }
           : e
       )
     }));
     setHasChanges(true);
+  };
+
+  const handleSave = async () => {
+    if (!editedWorkout) return;
+
+    // Get the current userId from cache
+    const userId = await CacheService.getItem<string>('userId');
+    if (!userId) {
+      Alert.alert('Error', 'User ID not found. Please log in again.');
+      return;
+    }
+
+    // Validate exercise names
+    const hasInvalidExercise = editedWorkout.exercises?.some(
+      exercise => !exercise.name || exercise.name.trim() === '' || exercise.name === 'New Exercise'
+    );
+
+    if (hasInvalidExercise) {
+      Alert.alert(
+        'Invalid Exercise Name',
+        'Please provide a valid name for all exercises. "New Exercise" is not allowed.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    try {
+      // If this is a new workout (no id), create it
+      if (!editedWorkout.id) {
+        const response = await workoutService.createWorkout({
+          ...editedWorkout,
+          userId: parseInt(userId)
+        });
+        onSave(response);
+      } else {
+        // Update existing workout
+        await workoutService.updateWorkout({
+          userId: parseInt(userId),
+          workoutId: editedWorkout.id,
+          workoutDTO: editedWorkout
+        });
+        onSave(editedWorkout);
+      }
+    } catch (error) {
+      console.error('Failed to save workout:', error);
+      Alert.alert(
+        'Error',
+        'Failed to save workout. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   if (!visible || !editedWorkout) return null;
@@ -202,7 +270,7 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
               style={styles.workoutName}
               value={editedWorkout.name}
               onChangeText={(text) => {
-                setEditedWorkout(prev => ({ ...prev, name: text }));
+                setEditedWorkout(prev => ({ ...prev!, name: text }));
                 setHasChanges(true);
               }}
             />
@@ -210,7 +278,7 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
               {hasChanges && (
                 <TouchableOpacity
                   style={styles.saveButton}
-                  onPress={() => onSave(editedWorkout)}
+                  onPress={handleSave}
                 >
                   <Text style={styles.saveButtonText}>Save</Text>
                 </TouchableOpacity>
@@ -225,35 +293,35 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
           </View>
 
           <ScrollView style={styles.exerciseList}>
-            {editedWorkout.exercises.map(exercise => (
+            {editedWorkout.exercises?.map(exercise => (
               <ExerciseItem
                 key={exercise.id}
                 exercise={exercise}
-                isExpanded={expandedExercises[exercise.id]}
-                onToggle={() => toggleExercise(exercise.id)}
+                isExpanded={expandedExercises[exercise.id || 0]}
+                onToggle={() => toggleExercise(exercise.id || 0)}
                 onDelete={() => {
                   setEditedWorkout(prev => ({
-                    ...prev,
-                    exercises: prev.exercises.filter(e => e.id !== exercise.id)
+                    ...prev!,
+                    exercises: prev!.exercises?.filter(e => e.id !== exercise.id)
                   }));
                   setHasChanges(true);
                 }}
                 onUpdateExercise={(updatedExercise) => {
                   setEditedWorkout(prev => ({
-                    ...prev,
-                    exercises: prev.exercises.map(e =>
+                    ...prev!,
+                    exercises: prev!.exercises?.map(e =>
                       e.id === exercise.id ? updatedExercise : e
                     )
                   }));
                   setHasChanges(true);
                 }}
-                onAddSet={() => handleAddSet(exercise.id)}
+                onAddSet={() => handleAddSet(exercise.id || 0)}
                 onDeleteSet={(setId) => {
                   setEditedWorkout(prev => ({
-                    ...prev,
-                    exercises: prev.exercises.map(e =>
+                    ...prev!,
+                    exercises: prev!.exercises?.map(e =>
                       e.id === exercise.id
-                        ? { ...e, sets: e.sets.filter(s => s.id !== setId) }
+                        ? { ...e, sets: e.sets?.filter(s => s.id !== setId) }
                         : e
                     )
                   }));
@@ -261,12 +329,12 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
                 }}
                 onUpdateSet={(updatedSet) => {
                   setEditedWorkout(prev => ({
-                    ...prev,
-                    exercises: prev.exercises.map(e =>
+                    ...prev!,
+                    exercises: prev!.exercises?.map(e =>
                       e.id === exercise.id
                         ? {
                             ...e,
-                            sets: e.sets.map(s =>
+                            sets: e.sets?.map(s =>
                               s.id === updatedSet.id ? updatedSet : s
                             )
                           }

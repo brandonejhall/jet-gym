@@ -9,9 +9,22 @@ import {
 } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { WorkoutDTO } from '@/api/types';
 
-const WorkoutCard = ({ workout, onPress, onDelete }) => {
-  const renderRightActions = (progress, dragX) => {
+interface WorkoutCardProps {
+  workout: WorkoutDTO;
+  onPress: (workout: WorkoutDTO) => void;
+  onDelete: (workoutId: number) => void;
+}
+
+interface WorkoutListProps {
+  workouts: WorkoutDTO[];
+  onWorkoutPress: (workout: WorkoutDTO) => void;
+  onDeleteWorkout: (workoutId: number) => void;
+}
+
+const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, onPress, onDelete }) => {
+  const renderRightActions = (progress: Animated.AnimatedInterpolation<number>, dragX: Animated.AnimatedInterpolation<number>) => {
     const trans = dragX.interpolate({
       inputRange: [-100, 0],
       outputRange: [0, 100],
@@ -20,7 +33,7 @@ const WorkoutCard = ({ workout, onPress, onDelete }) => {
     return (
       <TouchableOpacity
         style={styles.deleteAction}
-        onPress={onDelete}
+        onPress={() => onDelete(workout.id || 0)}
       >
         <Animated.View
           style={[
@@ -39,17 +52,25 @@ const WorkoutCard = ({ workout, onPress, onDelete }) => {
     <Swipeable renderRightActions={renderRightActions}>
       <TouchableOpacity
         style={styles.card}
-        onPress={onPress}
+        onPress={() => onPress(workout)}
       >
         <View style={styles.cardHeader}>
-          <Text style={styles.workoutName}>{workout.name}</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.workoutName}>{workout.name}</Text>
+            {workout.completed && (
+              <View style={styles.completedTag}>
+                <MaterialCommunityIcons name="check-circle" size={16} color="#27ae60" />
+                <Text style={styles.completedText}>Completed</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.workoutDate}>{workout.date}</Text>
         </View>
         <View style={styles.cardFooter}>
           <View style={styles.exerciseCount}>
             <MaterialCommunityIcons name="dumbbell" size={16} color="#7f8c8d" />
             <Text style={styles.exerciseCountText}>
-              {workout.exercises.length} exercises
+              {workout.exercises?.length || 0} exercises
             </Text>
           </View>
           <MaterialCommunityIcons 
@@ -63,22 +84,22 @@ const WorkoutCard = ({ workout, onPress, onDelete }) => {
   );
 };
 
-export default function WorkoutList({ workouts, onWorkoutPress, onDeleteWorkout }) {
+const WorkoutList: React.FC<WorkoutListProps> = ({ workouts, onWorkoutPress, onDeleteWorkout }) => {
   return (
     <FlatList
       data={workouts}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item) => (item.id || 0).toString()}
       renderItem={({ item }) => (
         <WorkoutCard
           workout={item}
-          onPress={() => onWorkoutPress(item)}
-          onDelete={() => onDeleteWorkout(item.id)}
+          onPress={onWorkoutPress}
+          onDelete={onDeleteWorkout}
         />
       )}
       contentContainerStyle={styles.list}
     />
   );
-}
+};
 
 const styles = StyleSheet.create({
   list: {
@@ -98,10 +119,31 @@ const styles = StyleSheet.create({
   cardHeader: {
     marginBottom: 12,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   workoutName: {
     fontSize: 18,
     fontWeight: '600',
     color: '#2c3e50',
+    flex: 1,
+  },
+  completedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f5e9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  completedText: {
+    color: '#27ae60',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
   },
   workoutDate: {
     fontSize: 14,
@@ -140,3 +182,5 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
+
+export default WorkoutList;

@@ -315,7 +315,7 @@ export default function WorkoutManagementScreen() {
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutDTO | null>(null);
   const [workouts, setWorkouts] = useState<WorkoutDTO[]>([]);
   const [loading, setLoading] = useState(false);
-  const userId = 1; // Changed to number to match DTO type
+  const [userId, setUserId] = useState<string | null>(null);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterState & { isCustomFilter?: boolean }>({
     type: 'month',
@@ -326,7 +326,16 @@ export default function WorkoutManagementScreen() {
   });
   const [displayedWorkouts, setDisplayedWorkouts] = useState<WorkoutDTO[]>([]);
 
+  useEffect(() => {
+    const loadUserId = async () => {
+      const cachedUserId = await CacheService.getItem<string>('userId');
+      setUserId(cachedUserId);
+    };
+    loadUserId();
+  }, []);
+
   const loadWorkouts = async () => {
+    if (!userId) return;
     try {
       setLoading(true);
       const response: WorkoutDTO[] | null = await CacheService.getItem('workouts');
@@ -340,17 +349,19 @@ export default function WorkoutManagementScreen() {
   };
 
   const handleDeleteWorkout = async (workoutId: number) => {
+    if (!userId) return;
     try {
-      await workoutService.deleteWorkout({ userId, workoutId });
+      await workoutService.deleteWorkout({ userId: parseInt(userId), workoutId });
       setWorkouts(workouts.filter(w => w.id !== workoutId));
     } catch (error) {
       console.error('Failed to delete workout:', error);
     }
   };
 
-  const handleAddWorkout = async () => {
+  const handleAddWorkout = () => {
+    if (!userId) return;
     const newWorkout: WorkoutDTO = {
-      userId,
+      userId: parseInt(userId),
       name: 'New Workout',
       date: new Date().toISOString(),
       notes: '',
@@ -360,23 +371,7 @@ export default function WorkoutManagementScreen() {
       completed: false,
       exercises: []
     };
-
-    try {
-      const response = await workoutService.createWorkout(newWorkout);
-      if (response) {
-        setWorkouts([response, ...workouts]);
-        setSelectedWorkout(response);
-      }
-    } catch (error) {
-      console.error('Failed to create workout:', error);
-      // Fallback to mock behavior
-      const mockNewWorkout = {
-        id: Date.now(),
-        ...newWorkout
-      };
-      setWorkouts([mockNewWorkout, ...workouts]);
-      setSelectedWorkout(mockNewWorkout);
-    }
+    setSelectedWorkout(newWorkout);
   };
 
   const handleTimeFilterChange = (filter: TimeFilterType) => {
@@ -469,8 +464,10 @@ export default function WorkoutManagementScreen() {
   };
 
   useEffect(() => {
-    loadWorkouts();
-  }, []);
+    if (userId) {
+      loadWorkouts();
+    }
+  }, [userId]);
 
   useEffect(() => {
     // When workouts change, reapply the current time filter
