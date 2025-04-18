@@ -9,6 +9,7 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
@@ -136,6 +137,7 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
   const [editedWorkout, setEditedWorkout] = useState<WorkoutDTO | null>(null);
   const [expandedExercises, setExpandedExercises] = useState<Record<number, boolean>>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (workout) {
@@ -206,11 +208,13 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
 
   const handleSave = async () => {
     if (!editedWorkout) return;
+    setIsSaving(true);
 
     // Get the current userId from cache
     const userId = await CacheService.getItem<string>('userId');
     if (!userId) {
       Alert.alert('Error', 'User ID not found. Please log in again.');
+      setIsSaving(false);
       return;
     }
 
@@ -225,6 +229,7 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
         'Please provide a valid name for all exercises. "New Exercise" is not allowed.',
         [{ text: 'OK' }]
       );
+      setIsSaving(false);
       return;
     }
 
@@ -252,6 +257,8 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
         'Failed to save workout. Please try again.',
         [{ text: 'OK' }]
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -277,15 +284,21 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
             <View style={styles.headerButtons}>
               {hasChanges && (
                 <TouchableOpacity
-                  style={styles.saveButton}
+                  style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
                   onPress={handleSave}
+                  disabled={isSaving}
                 >
-                  <Text style={styles.saveButtonText}>Save</Text>
+                  {isSaving ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <Text style={styles.saveButtonText}>Save</Text>
+                  )}
                 </TouchableOpacity>
               )}
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={onClose}
+                disabled={isSaving}
               >
                 <MaterialCommunityIcons name="close" size={24} color="#7f8c8d" />
               </TouchableOpacity>
@@ -504,5 +517,8 @@ const styles = StyleSheet.create({
     color: '#3498db',
     marginLeft: 8,
     fontWeight: '600',
+  },
+  saveButtonDisabled: {
+    opacity: 0.7,
   },
 });

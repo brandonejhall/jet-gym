@@ -463,9 +463,19 @@ export default function WorkoutManagementScreen() {
     handleTimeFilterChange('month');
   };
 
+  const handleWorkoutSave = async (updatedWorkout: WorkoutDTO) => {
+    try {
+      // Force a refresh of the workouts list
+      await loadWorkouts();
+      setSelectedWorkout(null);
+    } catch (error) {
+      console.error('Failed to refresh workouts:', error);
+    }
+  };
+
   useEffect(() => {
     if (userId) {
-      loadWorkouts();
+    loadWorkouts();
     }
   }, [userId]);
 
@@ -530,12 +540,7 @@ export default function WorkoutManagementScreen() {
           visible={!!selectedWorkout}
           workout={selectedWorkout}
           onClose={() => setSelectedWorkout(null)}
-          onSave={(updatedWorkout) => {
-            setWorkouts(workouts.map(w => 
-              w.id === updatedWorkout.id ? updatedWorkout : w
-            ));
-            setSelectedWorkout(null);
-          }}
+          onSave={handleWorkoutSave}
         />
 
         <FilterModal
