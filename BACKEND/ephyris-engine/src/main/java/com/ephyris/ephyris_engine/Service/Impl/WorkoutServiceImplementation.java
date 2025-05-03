@@ -435,7 +435,7 @@ public class WorkoutServiceImplementation implements WorkoutService {
                 workouts = getWorkoutsByDateRange(userId, startOfWeek, endOfWeek);
             }
             case "month" -> {
-                startDate = today.withDayOfMonth(1);
+                startDate = today.withDayOfMonth(1).minusDays(1); // Include the entire first day
                 endDate = today.withDayOfMonth(today.lengthOfMonth());
                 workouts = getWorkoutsByDateRange(userId, startDate, endDate);
             }

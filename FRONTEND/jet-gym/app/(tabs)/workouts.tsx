@@ -399,8 +399,9 @@ export default function WorkoutManagementScreen() {
       case 'month': {
         const monthWorkouts = workouts.filter(workout => {
           const workoutDate = new Date(workout.date);
-          return workoutDate.getMonth() === now.getMonth() && 
-                 workoutDate.getFullYear() === now.getFullYear();
+          // Compare year and month separately to avoid timezone issues
+          return workoutDate.getUTCFullYear() === now.getUTCFullYear() && 
+                 workoutDate.getUTCMonth() === now.getUTCMonth();
         });
         setDisplayedWorkouts(monthWorkouts);
         setActiveFilter({
