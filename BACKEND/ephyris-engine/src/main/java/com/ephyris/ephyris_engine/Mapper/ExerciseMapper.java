@@ -25,7 +25,13 @@ public interface ExerciseMapper {
     @AfterMapping
     default void linkExerciseSets(@MappingTarget Exercise exercise) {
         if (exercise.getSets() != null) {
-            exercise.getSets().forEach(set -> set.setExercise(exercise));
+            exercise.getSets().forEach(set -> {
+                set.setExercise(exercise);
+                // Ensure the set is managed by the exercise
+                if (set.getId() == null) {
+                    exercise.getSets().add(set);
+                }
+            });
         }
     }
 

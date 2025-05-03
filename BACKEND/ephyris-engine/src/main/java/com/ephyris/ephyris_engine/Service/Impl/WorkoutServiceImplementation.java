@@ -4,14 +4,15 @@ import com.ephyris.ephyris_engine.Config.ResourceNotFoundException;
 import com.ephyris.ephyris_engine.DataTransferObject.ExerciseDTO;
 import com.ephyris.ephyris_engine.DataTransferObject.UserDTO;
 import com.ephyris.ephyris_engine.DataTransferObject.WorkoutDTO;
+import com.ephyris.ephyris_engine.Entity.Exercise;
 import com.ephyris.ephyris_engine.Entity.Workout;
+import com.ephyris.ephyris_engine.Repository.ExerciseRepository;
 import com.ephyris.ephyris_engine.Repository.WorkoutRepository;
 import com.ephyris.ephyris_engine.Service.WorkoutService;
-
-import jakarta.persistence.criteria.CriteriaBuilder.Case;
-
 import com.ephyris.ephyris_engine.Mapper.WorkoutMapper;
 import org.springframework.stereotype.Service;
+
+import jakarta.persistence.criteria.CriteriaBuilder.Case;
 
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDate;
@@ -33,18 +34,19 @@ public class WorkoutServiceImplementation implements WorkoutService {
 
     private final WorkoutRepository wRepo;
     private final UserServiceImplementation userService;
-
     private final ExerciseServiceImplementation exerciseService;
-
+    private final ExerciseRepository eRepo;
     private final WorkoutMapper wMapper;
 
     public WorkoutServiceImplementation(WorkoutRepository wRepo,
             UserServiceImplementation userService,
             ExerciseServiceImplementation exerciseService,
+            ExerciseRepository eRepo,
             WorkoutMapper wMapper) {
         this.wRepo = wRepo;
         this.userService = userService;
         this.exerciseService = exerciseService;
+        this.eRepo = eRepo;
         this.wMapper = wMapper;
     }
 
@@ -139,27 +141,37 @@ public class WorkoutServiceImplementation implements WorkoutService {
             workout.setName(workoutDTO.getName());
         }
 
-        // Update date if provided
-
         // Handle exercises if provided
-        if (workoutDTO.getExercises() != null && !workoutDTO.getExercises().isEmpty()) {
-            for (ExerciseDTO exerciseDTO : workoutDTO.getExercises()) {
-                // Modify the DTO to include the workout ID
+        if (workoutDTO.getExercises() != null) {
+            // First, identify exercises to delete (those in the workout but not in the DTO)
+            List<Exercise> existingExercises = workout.getExercises();
+            List<ExerciseDTO> newExercises = workoutDTO.getExercises();
+
+            // Find exercises to delete
+            List<Exercise> exercisesToDelete = existingExercises.stream()
+                    .filter(existing -> newExercises.stream()
+                            .noneMatch(newEx -> newEx.getId() != null && newEx.getId().equals(existing.getId())))
+                    .collect(Collectors.toList());
+
+            // Delete exercises and their sets
+            for (Exercise exerciseToDelete : exercisesToDelete) {
+                // Delete all sets first
+                exerciseToDelete.getSets().clear();
+                eRepo.save(exerciseToDelete);
+                // Then delete the exercise
+                eRepo.delete(exerciseToDelete);
+            }
+
+            // Handle remaining exercises (create or update)
+            for (ExerciseDTO exerciseDTO : newExercises) {
                 exerciseDTO.setWorkoutId(workout.getId());
 
-                // Use the ExerciseService to create or update the exercise
-                // If exercise has an ID, it might be an update; otherwise, it's a new exercise
-
                 if (exerciseDTO.getId() == null) {
-                    @SuppressWarnings("unused")
-                    ExerciseDTO savedExerciseDTO = new ExerciseDTO();
                     // Create new exercise
-                    savedExerciseDTO = exerciseService.createExercise(exerciseDTO, userId);
+                    exerciseService.createExercise(exerciseDTO, userId);
                 } else {
-                    @SuppressWarnings("unused")
-                    ExerciseDTO updateExerciseDTO = new ExerciseDTO();
                     // Update existing exercise
-                    updateExerciseDTO = exerciseService.updateExercise(userId, exerciseDTO);
+                    exerciseService.updateExercise(userId, exerciseDTO);
                 }
             }
         }

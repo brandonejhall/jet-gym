@@ -33,28 +33,40 @@ public class ExerciseSetServiceImplementation implements ExerciseSetService {
     // creating a new one
     @Override
     public ExerciseSetDTO createExerciseSet(ExerciseSetDTO exerciseSetDTO, Long userId) throws AccessDeniedException {
+        System.out.println("Starting createExerciseSet with exerciseId: " + exerciseSetDTO.getExerciseId());
 
         if (exerciseSetDTO == null || exerciseSetDTO.getExerciseId() == null) {
+            System.out.println("Invalid exercise set data - DTO or exerciseId is null");
             throw new IllegalArgumentException("Invalid exercise set data");
         }
 
         Exercise exercise = eRepo.findById(exerciseSetDTO.getExerciseId())
-                .orElseThrow(() -> new ResourceNotFoundException("Exercise does not exist"));
+                .orElseThrow(() -> {
+                    System.out.println("Exercise not found with ID: " + exerciseSetDTO.getExerciseId());
+                    return new ResourceNotFoundException("Exercise does not exist");
+                });
 
         if (!exercise.getWorkout().getUser().getId().equals(userId)) {
+            System.out.println("User " + userId + " not authorized to modify exercise " + exercise.getId());
             throw new AccessDeniedException("User is not permitted to make changes to this exercise");
         }
 
+        System.out.println("Mapping DTO to entity");
         ExerciseSet exSet = eSMapper.toEntity(exerciseSetDTO);
         exSet.setExercise(exercise);
 
-        eSRepo.save(exSet);
+        System.out.println("Saving exercise set");
+        ExerciseSet savedSet = eSRepo.save(exSet);
+        System.out.println("Exercise set saved with ID: " + savedSet.getId());
 
-        exercise.getSets().add(exSet);
+        // Update the exercise's sets list
+        System.out.println("Adding set to exercise's sets list");
+        exercise.getSets().add(savedSet);
+        System.out.println("Saving exercise with updated sets list");
         eRepo.save(exercise);
+        System.out.println("Exercise saved successfully");
 
-        return eSMapper.toDTO(exSet);
-
+        return eSMapper.toDTO(savedSet);
     }
 
     @Override
@@ -100,7 +112,7 @@ public class ExerciseSetServiceImplementation implements ExerciseSetService {
             throw new IllegalArgumentException("Invalid exercise set data");
         }
 
-        ExerciseSet exerciseSet = eSRepo.findById(exerciseSetDTO.getExerciseId()).orElseThrow(
+        ExerciseSet exerciseSet = eSRepo.findById(exerciseSetDTO.getId()).orElseThrow(
                 () -> new ResourceNotFoundException("Set does not exist"));
 
         Exercise exercise = eRepo.findById(exerciseSetDTO.getExerciseId()).orElseThrow(
@@ -116,7 +128,6 @@ public class ExerciseSetServiceImplementation implements ExerciseSetService {
         updatedExerciseSet.setExercise(exercise);
 
         return eSMapper.toDTO(eSRepo.save(updatedExerciseSet));
-
     }
 
     private ExerciseSet mergeExerciseSet(ExerciseSetDTO exerciseSetDTO, ExerciseSet existingExerciseSet) {

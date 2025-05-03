@@ -19,6 +19,7 @@ import org.apache.commons.text.similarity.LevenshteinDistance;
 
 import java.nio.file.AccessDeniedException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ExerciseServiceImplementation implements ExerciseService {
@@ -63,15 +64,14 @@ public class ExerciseServiceImplementation implements ExerciseService {
         if (!workout.getUser().getId().equals(userId)) {
             throw new AccessDeniedException("User is not authorized to add exercises to this workout");
         }
-        // creates a deep copy of the list of sets
+
+        // Create a deep copy of the sets
         List<ExerciseSetDTO> sets = new ArrayList<>(exerciseDTO.getSets());
 
-        // sets list of on new exercise object as empty
-        exerciseDTO.setSets(Collections.<ExerciseSetDTO>emptyList());
+        // Clear the sets from the DTO to prevent detached entities
+        exerciseDTO.setSets(Collections.emptyList());
 
-        // ExerciseDTO initialExerciseSave = exerciseDTO;
-
-        // maps the dto to entity
+        // Map the DTO to entity
         Exercise exercise = eMapper.toEntity(exerciseDTO);
 
         // Try to find match in user's history first
@@ -84,27 +84,28 @@ public class ExerciseServiceImplementation implements ExerciseService {
             // Try to find a canonical match
             Optional<CanonicalExercise> canonicalMatch = findCanonicalMatch(exercise.getName());
             canonicalMatch.ifPresent(exercise::setCanonicalExercise);
-            // Could add logic here to suggest the canonical name
         }
 
-        // sets workout to entity
+        // Set the workout
         exercise.setWorkout(workout);
 
-        // save exercise with no sets
+        // Save the exercise first
         Exercise savedExercise = eRepo.save(exercise);
 
-        // checks if the deep copy of original sets are empty
+        // Handle sets if any
         if (!sets.isEmpty()) {
-            for (ExerciseSetDTO exSet : sets) {
-                // if not empty create exercise sets which while attaching the og exercise id
-                exSet.setExerciseId(savedExercise.getId());
-                exerciseSetService.createExerciseSet(exSet, userId);
+            for (ExerciseSetDTO setDTO : sets) {
+                setDTO.setExerciseId(savedExercise.getId());
+                ExerciseSetDTO savedSetDTO = exerciseSetService.createExerciseSet(setDTO, userId);
+                ExerciseSet savedSet = esMapper.toEntity(savedSetDTO);
+                savedSet.setExercise(savedExercise);
+                savedExercise.getSets().add(savedSet);
             }
-
+            // Save the exercise again to update the sets
+            savedExercise = eRepo.save(savedExercise);
         }
 
         return eMapper.toDto(savedExercise);
-
     }
 
     @Override
@@ -231,30 +232,65 @@ public class ExerciseServiceImplementation implements ExerciseService {
         }
 
         if (exerciseDTO.getSets() != null && !exerciseDTO.getSets().isEmpty()) {
-            for (ExerciseSetDTO setDTO : exerciseDTO.getSets()) {
+            // First, identify sets to delete (those in the exercise but not in the DTO)
+            List<ExerciseSet> existingSets = new ArrayList<>(exercise.getSets());
+            List<ExerciseSetDTO> newSets = exerciseDTO.getSets();
+
+            // Find sets to delete
+            List<ExerciseSet> setsToDelete = existingSets.stream()
+                    .filter(existing -> newSets.stream()
+                            .noneMatch(newSet -> newSet.getId() != null && newSet.getId().equals(existing.getId())))
+                    .collect(Collectors.toList());
+
+            // Delete sets that are no longer in the DTO
+            for (ExerciseSet setToDelete : setsToDelete) {
+                exercise.getSets().remove(setToDelete);
+                exerciseSetService.deleteExerciseSet(setToDelete.getId(), userId);
+            }
+
+            // Handle remaining sets (create or update)
+            for (ExerciseSetDTO setDTO : newSets) {
                 // Modify the DTO to include the exercise ID
                 setDTO.setExerciseId(exercise.getId());
 
-                // Check if this is a new set or an existing set
                 if (setDTO.getId() == null) {
                     // This is a new set - create it
                     ExerciseSetDTO savedSetDTO = exerciseSetService.createExerciseSet(setDTO, userId);
                     ExerciseSet savedSet = esMapper.toEntity(savedSetDTO);
+                    savedSet.setExercise(exercise);
                     exercise.getSets().add(savedSet);
                 } else {
-                    // This is an existing set - update it
-                    ExerciseSetDTO updatedSetDTO = exerciseSetService.updateExerciseSet(userId, setDTO);
-                    ExerciseSet updatedSet = esMapper.toEntity(updatedSetDTO);
+                    // Check if the set has actually changed
+                    ExerciseSet existingSet = exercise.getSets().stream()
+                            .filter(set -> set.getId().equals(setDTO.getId()))
+                            .findFirst()
+                            .orElse(null);
 
-                    // Find and replace the existing set in the exercise's set list
-                    exercise.getSets().removeIf(set -> set.getId().equals(updatedSet.getId()));
-                    exercise.getSets().add(updatedSet);
+                    if (existingSet != null) {
+                        boolean hasChanged = !Objects.equals(existingSet.getValue(), setDTO.getValue()) ||
+                                !Objects.equals(existingSet.getWeight(), setDTO.getWeight()) ||
+                                !Objects.equals(existingSet.getIsTimeBased(), setDTO.getIsTimeBased()) ||
+                                !Objects.equals(existingSet.getCompleted(), setDTO.getCompleted());
+
+                        if (hasChanged) {
+                            // This is an existing set that has changed - update it
+                            ExerciseSetDTO updatedSetDTO = exerciseSetService.updateExerciseSet(userId, setDTO);
+                            ExerciseSet updatedSet = esMapper.toEntity(updatedSetDTO);
+                            updatedSet.setExercise(exercise);
+
+                            // Find and replace the existing set in the exercise's set list
+                            exercise.getSets().removeIf(set -> set.getId().equals(updatedSet.getId()));
+                            exercise.getSets().add(updatedSet);
+                        }
+                    }
                 }
             }
+
+            // Save the exercise after all sets have been processed
+            exercise = eRepo.save(exercise);
         }
 
         return exercise;
-
     }
 
     private Optional<CanonicalExercise> findCanonicalMatch(String exerciseName) {

@@ -62,6 +62,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
             style={styles.exerciseName}
             value={exercise.name}
             onChangeText={(text) => onUpdateExercise({ ...exercise, name: text })}
+            placeholder="Exercise Name"
           />
           <MaterialCommunityIcons
             name={isExpanded ? 'chevron-up' : 'chevron-down'}
@@ -76,7 +77,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
           <View style={styles.setHeader}>
             <Text style={styles.setHeaderText}>Set</Text>
             <Text style={styles.setHeaderText}>Weight</Text>
-            <Text style={styles.setHeaderText}>Value</Text>
+            <Text style={styles.setHeaderText}>Reps</Text>
           </View>
           
           {exercise.sets?.map((set: ExerciseSetDTO, index: number) => (
@@ -100,6 +101,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
                   onChangeText={(text) => 
                     onUpdateSet({ ...set, weight: parseFloat(text) || 0 })
                   }
+                  placeholder="0"
                 />
                 <TextInput
                   style={styles.setInput}
@@ -108,6 +110,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
                   onChangeText={(text) =>
                     onUpdateSet({ ...set, value: parseInt(text) || 0 })
                   }
+                  placeholder="0"
                 />
               </View>
             </Swipeable>
@@ -141,7 +144,8 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
 
   useEffect(() => {
     if (workout) {
-      setEditedWorkout({ ...workout });
+      // Deep clone the workout to avoid mutating the original
+      setEditedWorkout(JSON.parse(JSON.stringify(workout)));
       setExpandedExercises({});
       setHasChanges(false);
     }
@@ -158,7 +162,7 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
     if (!editedWorkout) return;
 
     const newExercise: ExerciseDTO = {
-      id: Date.now(),
+      id: undefined,
       name: '',
       sets: [],
       workoutId: editedWorkout.id || 0,
@@ -185,11 +189,10 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
     const exercise = editedWorkout.exercises?.find(e => e.id === exerciseId);
     if (!exercise) return;
 
-    const lastSet = exercise.sets?.[exercise.sets.length - 1];
     const newSet: ExerciseSetDTO = {
-      id: Date.now(),
-      weight: lastSet?.weight || 0,
-      value: lastSet?.value || 0,
+      id: undefined,
+      weight: 0,
+      value: 0,
       completed: false,
       exerciseId: exercise.id || 0,
       isTimeBased: false
@@ -210,34 +213,65 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
     if (!editedWorkout) return;
     setIsSaving(true);
 
-    // Get the current userId from cache
-    const userId = await CacheService.getItem<string>('userId');
-    if (!userId) {
-      Alert.alert('Error', 'User ID not found. Please log in again.');
-      setIsSaving(false);
-      return;
-    }
-
-    // Validate exercise names
-    const hasInvalidExercise = editedWorkout.exercises?.some(
-      exercise => !exercise.name || exercise.name.trim() === '' || exercise.name === 'New Exercise'
-    );
-
-    if (hasInvalidExercise) {
-      Alert.alert(
-        'Invalid Exercise Name',
-        'Please provide a valid name for all exercises. "New Exercise" is not allowed.',
-        [{ text: 'OK' }]
-      );
-      setIsSaving(false);
-      return;
-    }
-
     try {
+      // Get the current userId from cache
+      const userId = await CacheService.getItem<string>('userId');
+      if (!userId) {
+        Alert.alert('Error', 'User ID not found. Please log in again.');
+        return;
+      }
+
+      // Log the workout data before saving
+      console.log('Saving workout with data:', {
+        workoutId: editedWorkout.id,
+        name: editedWorkout.name,
+        exercises: editedWorkout.exercises?.map(exercise => ({
+          id: exercise.id,
+          name: exercise.name,
+          workoutId: exercise.workoutId,
+          sets: exercise.sets?.map(set => ({
+            id: set.id,
+            exerciseId: set.exerciseId,
+            weight: set.weight,
+            value: set.value,
+            completed: set.completed,
+            isTimeBased: set.isTimeBased
+          }))
+        }))
+      });
+
+      // Validate exercise names
+      const hasInvalidExercise = editedWorkout.exercises?.some(
+        exercise => !exercise.name || exercise.name.trim() === ''
+      );
+
+      if (hasInvalidExercise) {
+        Alert.alert(
+          'Invalid Exercise Name',
+          'Please provide a valid name for all exercises.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Ensure all exercises have the correct workoutId
+      const updatedExercises = editedWorkout.exercises?.map(exercise => ({
+        ...exercise,
+        workoutId: editedWorkout.id || 0
+      }));
+
+      const workoutToSave = {
+        ...editedWorkout,
+        exercises: updatedExercises
+      };
+
+      // Log the final workout data being sent with full sets array
+      console.log('Final workout data being sent:', JSON.stringify(workoutToSave, null, 2));
+
       // If this is a new workout (no id), create it
       if (!editedWorkout.id) {
         const response = await workoutService.createWorkout({
-          ...editedWorkout,
+          ...workoutToSave,
           userId: parseInt(userId)
         });
         onSave(response);
@@ -246,9 +280,17 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
         await workoutService.updateWorkout({
           userId: parseInt(userId),
           workoutId: editedWorkout.id,
-          workoutDTO: editedWorkout
+          workoutDTO: workoutToSave
         });
-        onSave(editedWorkout);
+        
+        // Fetch the latest workout data after update
+        const workouts = await workoutService.getUserWorkouts(userId);
+        const updatedWorkout = workouts.find(w => w.id === editedWorkout.id);
+        if (updatedWorkout) {
+          onSave(updatedWorkout);
+        } else {
+          onSave(workoutToSave);
+        }
       }
     } catch (error) {
       console.error('Failed to save workout:', error);
@@ -280,6 +322,7 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
                 setEditedWorkout(prev => ({ ...prev!, name: text }));
                 setHasChanges(true);
               }}
+              placeholder="Workout Name"
             />
             <View style={styles.headerButtons}>
               {hasChanges && (
