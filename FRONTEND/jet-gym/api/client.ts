@@ -39,5 +39,5 @@ export const apiClient = {
   post: <T>(url: string, data?: any) => api.post<any, T>(url, data),
   put: <T>(url: string, data?: any) => api.put<any, T>(url, data),
   patch: <T>(url: string, data?: any) => api.patch<any, T>(url, data),
-  delete: <T>(url: string, data?: any) => api.delete<any, T>(url, data),
+  delete: <T>(url: string, data?: any) => api.delete<any, T>(url, { data }),
 };
