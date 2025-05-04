@@ -14,15 +14,28 @@ export const workoutService = {
     return response;
   },
     
-  updateWorkout: (data: WorkoutUpdateDTO) =>
-    apiClient.put<void>(endpoints.workout.update, data),
+  updateWorkout: async (data: WorkoutUpdateDTO) => {
+    await apiClient.put<void>(endpoints.workout.update, data);
+    // After updating workout, fetch updated list and cache it
+    const updatedWorkouts = await apiClient.get<WorkoutDTO[]>(endpoints.workout.getUserWorkouts(JSON.stringify(data.userId)));
+    await CacheService.setItem(WORKOUTS_CACHE_KEY, updatedWorkouts);
+  },
     
-  getUserWorkouts: (userId: string) =>
-    apiClient.get<WorkoutDTO[]>(endpoints.workout.getUserWorkouts(userId)),
+  getUserWorkouts: async (userId: string) => {
+    const workouts = await apiClient.get<WorkoutDTO[]>(endpoints.workout.getUserWorkouts(userId));
+    await CacheService.setItem(WORKOUTS_CACHE_KEY, workouts);
+    return workouts;
+  },
     
-  deleteWorkout: (data: WorkoutDeleteDTO) =>
-    apiClient.delete<void>(endpoints.workout.delete, data),
+  deleteWorkout: async (data: WorkoutDeleteDTO) => {
+    await apiClient.delete<void>(endpoints.workout.delete, data);
+    // After deleting workout, fetch updated list and cache it
+    const updatedWorkouts = await apiClient.get<WorkoutDTO[]>(endpoints.workout.getUserWorkouts(JSON.stringify(data.userId)));
+    await CacheService.setItem(WORKOUTS_CACHE_KEY, updatedWorkouts);
+  },
 
-  getWorkoutsByPeriod: (userId: string, period: string) =>
-    apiClient.get<WorkoutDTO[]>(endpoints.workout.getWorkoutsByPeriod(userId, period)),
+  getWorkoutsByPeriod: async (userId: string, period: string) => {
+    const workouts = await apiClient.get<WorkoutDTO[]>(endpoints.workout.getWorkoutsByPeriod(userId, period));
+    return workouts;
+  },
 };
