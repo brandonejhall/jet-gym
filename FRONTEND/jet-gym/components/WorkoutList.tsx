@@ -6,10 +6,13 @@ import {
   TouchableOpacity,
   Animated,
   FlatList,
+  Alert,
 } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { WorkoutDTO } from '@/api/types';
+import { workoutService } from '../api/services/workout';
+import { CacheService } from '../api/services/cacheservice';
 
 interface WorkoutCardProps {
   workout: WorkoutDTO;
@@ -24,29 +27,36 @@ interface WorkoutListProps {
 }
 
 const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, onPress, onDelete }) => {
-  const renderRightActions = (progress: Animated.AnimatedInterpolation<number>, dragX: Animated.AnimatedInterpolation<number>) => {
-    const trans = dragX.interpolate({
-      inputRange: [-100, 0],
-      outputRange: [0, 100],
-    });
-
-    return (
-      <TouchableOpacity
-        style={styles.deleteAction}
-        onPress={() => onDelete(workout.id || 0)}
-      >
-        <Animated.View
-          style={[
-            styles.deleteActionContent,
-            { transform: [{ translateX: trans }] },
-          ]}
-        >
-          <MaterialCommunityIcons name="delete" size={24} color="white" />
-          <Text style={styles.deleteActionText}>Delete</Text>
-        </Animated.View>
-      </TouchableOpacity>
+  const handleDeletePress = async () => {
+    Alert.alert(
+      'Delete Workout',
+      'Are you sure you want to delete this workout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: async () => {
+            try {
+              const userId = await CacheService.getItem<string>('userId');
+              if (!userId) throw new Error('User ID not found');
+              await workoutService.deleteWorkout({ userId: parseInt(userId), workoutId: workout.id ?? 0 });
+              onDelete(workout.id || 0);
+            } catch (err) {
+              Alert.alert('Error', 'Failed to delete workout.');
+            }
+          }
+        },
+      ]
     );
   };
+
+  const renderRightActions = () => (
+    <TouchableOpacity
+      style={styles.deleteAction}
+      onPress={handleDeletePress}
+    >
+      <MaterialCommunityIcons name="delete" size={24} color="white" />
+      <Text style={styles.deleteActionText}>Delete</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <Swipeable renderRightActions={renderRightActions}>
@@ -167,14 +177,12 @@ const styles = StyleSheet.create({
   deleteAction: {
     backgroundColor: '#e74c3c',
     justifyContent: 'center',
-    alignItems: 'flex-end',
-    marginBottom: 12,
-    borderRadius: 12,
-  },
-  deleteActionContent: {
-    padding: 16,
-    justifyContent: 'center',
     alignItems: 'center',
+    width: 80,
+    height: '90%',
+    borderRadius: 12,
+    marginBottom: 12,
+    flexDirection: 'column',
   },
   deleteActionText: {
     color: 'white',

@@ -15,6 +15,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { workoutService } from '../api/services/workout';
 import { CacheService } from '../api/services/cacheservice';
+import { exerciseService } from '../api/services/exercise';
+import { exerciseSetService } from '../api/services/exerciseSet';
 
 interface ExerciseItemProps {
   exercise: ExerciseDTO;
@@ -37,11 +39,53 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
   onDeleteSet,
   onUpdateSet,
 }) => {
+  const handleExerciseDelete = async () => {
+    Alert.alert(
+      'Delete Exercise',
+      'Are you sure you want to delete this exercise?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: async () => {
+            try {
+              const userId = await CacheService.getItem<string>('userId');
+              if (!userId) throw new Error('User ID not found');
+              await exerciseService.deleteExercise({ userId: userId, exerciseId: String(exercise.id ?? '') });
+              onDelete();
+            } catch (err) {
+              Alert.alert('Error', 'Failed to delete exercise.');
+            }
+          }
+        },
+      ]
+    );
+  };
+
+  const handleSetDelete = async (setId: number) => {
+    Alert.alert(
+      'Delete Set',
+      'Are you sure you want to delete this set?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: async () => {
+            try {
+              const userId = await CacheService.getItem<string>('userId');
+              if (!userId) throw new Error('User ID not found');
+              await exerciseSetService.deleteSet({ userId: userId, exerciseSetId: String(setId ?? '') });
+              onDeleteSet(setId);
+            } catch (err) {
+              Alert.alert('Error', 'Failed to delete set.');
+            }
+          }
+        },
+      ]
+    );
+  };
+
   const renderRightActions = (progress: any, dragX: any) => {
     return (
       <TouchableOpacity
         style={styles.deleteAction}
-        onPress={onDelete}
+        onPress={handleExerciseDelete}
       >
         <View style={styles.deleteActionContent}>
           <MaterialCommunityIcons name="delete" size={24} color="white" />
@@ -86,7 +130,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
               renderRightActions={() => (
                 <TouchableOpacity
                   style={styles.deleteSetAction}
-                  onPress={() => onDeleteSet(set.id || 0)}
+                  onPress={() => handleSetDelete(set.id || 0)}
                 >
                   <MaterialCommunityIcons name="delete" size={20} color="white" />
                 </TouchableOpacity>
