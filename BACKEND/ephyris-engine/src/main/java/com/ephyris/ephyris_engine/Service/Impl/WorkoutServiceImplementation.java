@@ -141,6 +141,11 @@ public class WorkoutServiceImplementation implements WorkoutService {
             workout.setName(workoutDTO.getName());
         }
 
+        // Update completed status if provided
+        if (workoutDTO.getCompleted() != null) {
+            workout.setCompleted(workoutDTO.getCompleted());
+        }
+
         // Handle exercises if provided
         if (workoutDTO.getExercises() != null) {
             // First, identify exercises to delete (those in the workout but not in the DTO)

@@ -67,15 +67,21 @@ const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, onPress, onDelete })
         <View style={styles.cardHeader}>
           <View style={styles.titleContainer}>
             <Text style={styles.workoutName}>{workout.name}</Text>
-            {workout.completed && (
-              <View style={styles.completedTag}>
-                <MaterialCommunityIcons name="check-circle" size={16} color="#27ae60" />
-                <Text style={styles.completedText}>Completed</Text>
-              </View>
-            )}
           </View>
-          <Text style={styles.workoutDate}>{workout.date}</Text>
+          <Text style={styles.workoutDate}>{new Date(workout.date || '').toLocaleDateString()}</Text>
         </View>
+
+        <View
+          style={[
+            styles.pill,
+            workout.completed ? styles.completedPill : styles.inProgressPill,
+          ]}
+        >
+          <Text style={styles.pillText}>
+            {workout.completed ? 'Completed' : 'In Progress'}
+          </Text>
+        </View>
+
         <View style={styles.cardFooter}>
           <View style={styles.exerciseCount}>
             <MaterialCommunityIcons name="dumbbell" size={16} color="#7f8c8d" />
@@ -140,25 +146,29 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     flex: 1,
   },
-  completedTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e8f5e9',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginLeft: 8,
-  },
-  completedText: {
-    color: '#27ae60',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
   workoutDate: {
     fontSize: 14,
     color: '#7f8c8d',
     marginTop: 4,
+  },
+  pill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  completedPill: {
+    backgroundColor: '#27ae60', // green
+  },
+  inProgressPill: {
+    backgroundColor: '#e74c3c', // red
+  },
+  pillText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12,
   },
   cardFooter: {
     flexDirection: 'row',

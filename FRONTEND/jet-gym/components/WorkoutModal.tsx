@@ -405,6 +405,12 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
     }
   };
 
+  const handleFieldChange = (field: keyof WorkoutDTO, value: any) => {
+    if (!editedWorkout) return;
+    setEditedWorkout(prev => ({ ...prev!, [field]: value }));
+    setHasChanges(true);
+  };
+
   if (!visible || !editedWorkout) return null;
 
   return (
@@ -412,47 +418,58 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
       visible={visible}
       animationType="slide"
       transparent={true}
+      onRequestClose={onClose}
     >
       <View style={styles.modalContainer}>
+        {isSaving && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#3498db" />
+            <Text style={styles.loadingText}>Saving workout...</Text>
+          </View>
+        )}
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <MaterialCommunityIcons name="close" size={24} color="#7f8c8d" />
+            </TouchableOpacity>
             <TextInput
-              style={styles.workoutName}
-              value={editedWorkout.name}
-              onChangeText={(text) => {
-                setEditedWorkout(prev => ({ ...prev!, name: text }));
-                setHasChanges(true);
-              }}
+              style={styles.workoutNameInput}
+              value={editedWorkout?.name || ''}
+              onChangeText={(text) => handleFieldChange('name', text)}
               placeholder="Workout Name"
             />
-            <View style={styles.headerButtons}>
-              {hasChanges && (
-                <TouchableOpacity
-                  style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-                  onPress={handleSave}
-                  disabled={isSaving}
-                >
-                  {isSaving ? (
-                    <ActivityIndicator color="white" size="small" />
-                  ) : (
-                    <Text style={styles.saveButtonText}>Save</Text>
-                  )}
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={onClose}
-                disabled={isSaving}
-              >
-                <MaterialCommunityIcons name="close" size={24} color="#7f8c8d" />
+            {hasChanges ? (
+              <TouchableOpacity onPress={handleSave} style={styles.saveButton} disabled={isSaving}>
+                <Text style={styles.saveButtonText}>Save</Text>
               </TouchableOpacity>
-            </View>
+            ) : (
+              <View style={styles.saveButtonPlaceholder} />
+            )}
           </View>
 
-          <ScrollView style={styles.exerciseList}>
-            {editedWorkout.exercises?.map(exercise => (
+          <View style={styles.optionsContainer}>
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => handleFieldChange('completed', !editedWorkout?.completed)}
+            >
+              <Text style={styles.optionLabel}>Completed</Text>
+              <View style={styles.checkboxContainer}>
+                <MaterialCommunityIcons
+                  name={editedWorkout?.completed ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                  size={24}
+                  color={editedWorkout?.completed ? '#27ae60' : '#7f8c8d'}
+                />
+                {!editedWorkout?.completed && (
+                  <Text style={styles.checkboxLabel}>In Progress</Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.scrollContainer}>
+            {editedWorkout?.exercises?.map((exercise, index) => (
               <ExerciseItem
-                key={exercise.id}
+                key={exercise.id || `new-exercise-${index}`}
                 exercise={exercise}
                 isExpanded={expandedExercises[exercise.id || 0]}
                 onToggle={() => toggleExercise(exercise.id || 0)}
@@ -528,6 +545,19 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '90%',
+    padding: 16,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#2c3e50',
+    fontSize: 16,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -541,32 +571,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  workoutName: {
+  workoutNameInput: {
+    flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
     color: '#2c3e50',
-    flex: 1,
+    marginLeft: 12,
   },
   saveButton: {
     backgroundColor: '#3498db',
+    borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
-    marginRight: 12,
   },
   saveButtonText: {
     color: 'white',
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   closeButton: {
-    padding: 4,
+    padding: 8,
   },
   exerciseList: {
     padding: 16,
   },
   exerciseContainer: {
     marginBottom: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'white',
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -701,23 +731,38 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontWeight: '600',
   },
-  saveButtonDisabled: {
-    opacity: 0.7,
+  saveButtonPlaceholder: {
+    width: 70, // Matches rough size of save button
   },
-  timeBasedIndicator: {
+  optionsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e8ed',
+  },
+  optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
   },
-  indicatorText: {
-    marginLeft: 4,
-    fontSize: 14,
+  optionLabel: {
+    fontSize: 16,
     color: '#2c3e50',
+    fontWeight: '500',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkboxLabel: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#7f8c8d',
+  },
+  scrollContainer: {
+    paddingBottom: 16,
   },
   timeBasedToggleDisabled: {
     opacity: 0.7,
