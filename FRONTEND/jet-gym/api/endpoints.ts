@@ -24,6 +24,13 @@ export const endpoints = {
       delete: '/api/sets/delete',
       getByExercise: (exerciseId: string) => `/api/sets/exerciseSets/${exerciseId}`,
     },
+    analytics: {
+      workoutsPerWeek: '/api/analytics/workouts-per-week',
+      consistencyInsight: '/api/analytics/consistency-insight',
+      personalRecords: '/api/analytics/personal-records',
+      weeklyVolume: '/api/analytics/weekly-volume',
+      muscleVolume: '/api/analytics/muscle-volume',
+    },
 
     // Add more endpoints as needed
   };

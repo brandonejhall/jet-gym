@@ -48,6 +48,7 @@ export interface ExerciseDTO {
   muscleGroup: string;
   canonicalName: string;
   normalizedName: string;
+  isTimeBased: boolean;
   sets?: ExerciseSetDTO[];
 }
 

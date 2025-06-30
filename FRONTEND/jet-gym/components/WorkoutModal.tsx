@@ -39,6 +39,24 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
   onDeleteSet,
   onUpdateSet,
 }) => {
+  const [isTimeBased, setIsTimeBased] = useState(exercise.isTimeBased || false);
+  const hasSets = exercise.sets && exercise.sets.length > 0;
+
+  const handleTimeBasedToggle = () => {
+    if (hasSets) {
+      Alert.alert(
+        'Cannot Change Exercise Type',
+        'Please remove all sets before changing the exercise type.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    const newValue = !isTimeBased;
+    setIsTimeBased(newValue);
+    onUpdateExercise({ ...exercise, isTimeBased: newValue });
+  };
+
   const handleExerciseDelete = async () => {
     Alert.alert(
       'Delete Exercise',
@@ -118,10 +136,44 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({
 
       {isExpanded && (
         <View style={styles.setsContainer}>
+          <View style={styles.exerciseOptions}>
+            <View style={[
+              styles.timeBasedToggle,
+              hasSets && styles.timeBasedToggleDisabled
+            ]}>
+              <Text style={styles.toggleLabel}>Time Based</Text>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  { backgroundColor: exercise.isTimeBased ? '#3498db' : '#e0e0e0' },
+                  hasSets && styles.toggleButtonDisabled
+                ]}
+                onPress={handleTimeBasedToggle}
+                disabled={hasSets}
+              >
+                <Text style={[
+                  styles.toggleText,
+                  { color: exercise.isTimeBased ? 'white' : '#666' },
+                  hasSets && styles.toggleTextDisabled
+                ]}>
+                  {exercise.isTimeBased ? 'Yes' : 'No'}
+                </Text>
+              </TouchableOpacity>
+              {hasSets && (
+                <MaterialCommunityIcons 
+                  name="lock" 
+                  size={14} 
+                  color="#95a5a6" 
+                  style={styles.lockIcon} 
+                />
+              )}
+            </View>
+          </View>
+
           <View style={styles.setHeader}>
             <Text style={styles.setHeaderText}>Set</Text>
             <Text style={styles.setHeaderText}>Weight</Text>
-            <Text style={styles.setHeaderText}>Reps</Text>
+            <Text style={styles.setHeaderText}>{exercise.isTimeBased ? 'Time (s)' : 'Reps'}</Text>
           </View>
           
           {exercise.sets?.map((set: ExerciseSetDTO, index: number) => (
@@ -212,7 +264,8 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
       workoutId: editedWorkout.id || 0,
       muscleGroup: '',
       canonicalName: '',
-      normalizedName: ''
+      normalizedName: '',
+      isTimeBased: false
     };
 
     setEditedWorkout(prev => ({
@@ -235,21 +288,25 @@ export default function WorkoutModal({ visible, workout, onClose, onSave }: Work
 
     const newSet: ExerciseSetDTO = {
       id: undefined,
+      exerciseId: exerciseId,
       weight: 0,
       value: 0,
       completed: false,
-      exerciseId: exercise.id || 0,
-      isTimeBased: false
+      isTimeBased: exercise.isTimeBased || false // Inherit from exercise
     };
-    
-    setEditedWorkout(prev => ({
-      ...prev!,
-      exercises: prev!.exercises?.map(e =>
-        e.id === exerciseId
-          ? { ...e, sets: [...(e.sets || []), newSet] }
-          : e
-      )
-    }));
+
+    setEditedWorkout(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        exercises: prev.exercises?.map(e =>
+          e.id === exerciseId ? {
+            ...e,
+            sets: [...(e.sets || []), newSet]
+          } : e
+        )
+      };
+    });
     setHasChanges(true);
   };
 
@@ -529,6 +586,45 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: 'white',
   },
+  exerciseOptions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  timeBasedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  timeBasedToggleActive: {
+    backgroundColor: '#3498db',
+    borderColor: '#3498db',
+  },
+  toggleLabel: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginRight: 8,
+  },
+  toggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  toggleText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#2c3e50',
+  },
+  toggleTextActive: {
+    color: '#fff',
+  },
   setHeader: {
     flexDirection: 'row',
     paddingBottom: 8,
@@ -607,5 +703,33 @@ const styles = StyleSheet.create({
   },
   saveButtonDisabled: {
     opacity: 0.7,
+  },
+  timeBasedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  indicatorText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#2c3e50',
+  },
+  timeBasedToggleDisabled: {
+    opacity: 0.7,
+    borderColor: '#bdc3c7',
+  },
+  toggleButtonDisabled: {
+    opacity: 0.7,
+  },
+  toggleTextDisabled: {
+    color: '#95a5a6',
+  },
+  lockIcon: {
+    marginLeft: 8,
   },
 });

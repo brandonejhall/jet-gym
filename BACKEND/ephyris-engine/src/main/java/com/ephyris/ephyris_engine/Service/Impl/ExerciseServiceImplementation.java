@@ -231,6 +231,16 @@ public class ExerciseServiceImplementation implements ExerciseService {
             }
         }
 
+        // Handle isTimeBased changes
+        if (exerciseDTO.getIsTimeBased() != exercise.getIsTimeBased()) {
+            // Only allow changing isTimeBased if there are no sets
+            if (exercise.getSets() != null && !exercise.getSets().isEmpty()) {
+                throw new IllegalStateException(
+                        "Cannot change exercise type (time-based/rep-based) while sets exist. Please remove all sets first.");
+            }
+            exercise.setIsTimeBased(exerciseDTO.getIsTimeBased());
+        }
+
         if (exerciseDTO.getSets() != null && !exerciseDTO.getSets().isEmpty()) {
             // First, identify sets to delete (those in the exercise but not in the DTO)
             List<ExerciseSet> existingSets = new ArrayList<>(exercise.getSets());
@@ -250,6 +260,9 @@ public class ExerciseServiceImplementation implements ExerciseService {
 
             // Handle remaining sets (create or update)
             for (ExerciseSetDTO setDTO : newSets) {
+                // Ensure set's isTimeBased matches exercise's isTimeBased
+                setDTO.setIsTimeBased(exercise.getIsTimeBased());
+
                 // Modify the DTO to include the exercise ID
                 setDTO.setExerciseId(exercise.getId());
 

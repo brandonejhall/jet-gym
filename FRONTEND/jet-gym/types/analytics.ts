@@ -101,6 +101,7 @@ export interface ConsistencyInsight {
   patternFindings: string;
   recommendation: string;
   weeklyFrequency: number[];
+  dailyWorkouts: number[];
   consistencyScore: number;
 }
 

@@ -10,44 +10,76 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { TimeFilter } from '../../types';
-import TimeFilterComponent from '../../components/TimeFilter';
-import AIInsightsSection from '../../components/analytics/AIInsightsSection';
-import MetricsSection from '../../components/analytics/MetricsSection';
-import ProgressCharts from '../../components/analytics/ProgressCharts';
-import ExerciseAnalysis from '../../components/analytics/ExerciseAnalysis';
-import { 
-  mockMetrics, 
-  mockAIInsights, 
-  mockExerciseProgress, 
-  mockProgressChartData,
-  mockStrengthProgress 
-} from '../../data/mockAnalytics';
-import { workoutService } from '../../api/services/workout';
-import { exerciseService } from '../../api/services/exercise';
+import { analyticsService } from '../../api/services/analytics';
+import {
+  WorkoutConsistencyChart,
+  PersonalRecordsSection,
+  WeeklyVolumeChart,
+  MuscleGroupHeatmap
+} from '../../components/analytics';
+
+interface AnalyticsData {
+  workoutConsistency: { [weekNumber: number]: number } | null;
+  personalRecords: any[] | null;
+  weeklyVolume: any[] | null;
+  muscleVolume: any | null;
+}
 
 export default function AnalyticsScreen() {
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('week');
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const userId = 'current-user-id'; // You'll need to get this from your auth context
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
+    workoutConsistency: null,
+    personalRecords: null,
+    weeklyVolume: null,
+    muscleVolume: null,
+  });
+  const [error, setError] = useState<string | null>(null);
+  
+  // For now, using a hardcoded user ID - in a real app, this would come from auth context
+  const userId = 1;
+  const weeksBack = 7;
 
   const loadAnalytics = async () => {
     try {
+      setError(null);
       setIsLoading(true);
-      const workouts = await workoutService.getUserWorkouts(userId);
       
-      // Process workout data for analytics
-      // For now, we'll fall back to mock data since the actual data processing
-      // logic would depend on your specific requirements
-      
-      // setMetrics(processedMetrics);
-      // setProgressChartData(processedChartData);
-      // etc.
+      // Load all analytics data in parallel
+      const [
+        workoutConsistency,
+        personalRecords,
+        weeklyVolume,
+        muscleVolume
+      ] = await Promise.all([
+        analyticsService.getWeeklyWorkoutCounts(userId, weeksBack).catch(err => {
+          console.error('Error fetching workout consistency:', err);
+          return null;
+        }),
+        analyticsService.getPersonalRecords(userId).catch(err => {
+          console.error('Error fetching personal records:', err);
+          return null;
+        }),
+        analyticsService.getWeeklyVolume(userId, weeksBack).catch(err => {
+          console.error('Error fetching weekly volume:', err);
+          return null;
+        }),
+        analyticsService.getMuscleVolume(userId).catch(err => {
+          console.error('Error fetching muscle volume:', err);
+          return null;
+        }),
+      ]);
+
+      setAnalyticsData({
+        workoutConsistency,
+        personalRecords,
+        weeklyVolume,
+        muscleVolume,
+      });
       
     } catch (error) {
       console.error('Failed to load analytics:', error);
-      // Fall back to mock data
+      setError('Failed to load analytics data. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +87,7 @@ export default function AnalyticsScreen() {
 
   useEffect(() => {
     loadAnalytics();
-  }, [timeFilter]);
+  }, []);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -63,7 +95,7 @@ export default function AnalyticsScreen() {
     setRefreshing(false);
   }, []);
 
-  if (isLoading) {
+  if (isLoading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3498db" />
@@ -76,35 +108,47 @@ export default function AnalyticsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Your Fitness Analytics</Text>
-        <TouchableOpacity onPress={onRefresh}>
+        <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
           <MaterialCommunityIcons name="refresh" size={24} color="#3498db" />
         </TouchableOpacity>
       </View>
 
-      <TimeFilterComponent selected={timeFilter} onSelect={setTimeFilter} />
+      {error && (
+        <View style={styles.errorContainer}>
+          <MaterialCommunityIcons name="alert-circle" size={24} color="#e74c3c" />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
 
       <ScrollView
         style={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
-        <AIInsightsSection 
-          timeFilter={timeFilter} 
-          insights={mockAIInsights}
+        {/* 1. Workout Consistency Chart */}
+        <WorkoutConsistencyChart 
+          data={analyticsData.workoutConsistency || {}}
+          isLoading={isLoading}
         />
-        <MetricsSection 
-          timeFilter={timeFilter} 
-          metrics={mockMetrics}
+
+        {/* 2. Personal Records Section */}
+        <PersonalRecordsSection 
+          records={analyticsData.personalRecords || []}
+          isLoading={isLoading}
         />
-        <ProgressCharts 
-          timeFilter={timeFilter}
-          progressData={mockProgressChartData}
-          strengthData={mockStrengthProgress}
+
+        {/* 3. Weekly Volume Chart */}
+        <WeeklyVolumeChart 
+          data={analyticsData.weeklyVolume || []}
+          isLoading={isLoading}
         />
-        <ExerciseAnalysis 
-          timeFilter={timeFilter}
-          exerciseProgress={mockExerciseProgress}
+
+        {/* 4. Muscle Group Heatmap */}
+        <MuscleGroupHeatmap 
+          data={analyticsData.muscleVolume || { muscleVolumes: {}, totalVolume: 0 }}
+          isLoading={isLoading}
         />
       </ScrollView>
     </SafeAreaView>
@@ -133,13 +177,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e8ed',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#2c3e50',
   },
+  refreshButton: {
+    padding: 8,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fee',
+    padding: 12,
+    margin: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#e74c3c',
+  },
+  errorText: {
+    marginLeft: 8,
+    color: '#e74c3c',
+    fontSize: 14,
+    flex: 1,
+  },
   content: {
     flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
 });

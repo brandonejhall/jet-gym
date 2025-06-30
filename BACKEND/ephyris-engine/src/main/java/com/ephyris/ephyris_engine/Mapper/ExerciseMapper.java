@@ -15,11 +15,13 @@ public interface ExerciseMapper {
     @Mapping(source = "sets", target = "sets")
     @Mapping(target = "canonicalExercise", ignore = true)
     @Mapping(target = "normalizedName", expression = "java(dto.getName().toLowerCase().replaceAll(\"\\\\s+\", \"\"))")
+    @Mapping(source = "isTimeBased", target = "isTimeBased", defaultValue = "false")
     Exercise toEntity(ExerciseDTO dto);
 
     @Mapping(source = "workout.id", target = "workoutId")
     @Mapping(source = "sets", target = "sets")
     @Mapping(source = "canonicalExercise.name", target = "canonicalName")
+    @Mapping(source = "isTimeBased", target = "isTimeBased")
     ExerciseDTO toDto(Exercise entity);
 
     @AfterMapping

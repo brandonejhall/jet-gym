@@ -36,6 +36,9 @@ public class Exercise {
     @Column
     private String normalizedName;
 
+    @Column(nullable = false)
+    private Boolean isTimeBased = false;
+
     @PrePersist
     @PreUpdate
     private void prepareNormalizedName() {

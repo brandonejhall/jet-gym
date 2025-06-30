@@ -16,4 +16,5 @@ public class ExerciseDTO {
     private List<ExerciseSetDTO> sets;
     private String canonicalName; // Maps to canonicalExercise.name
     private String normalizedName; // Add this to match entity
+    private Boolean isTimeBased;
 }
