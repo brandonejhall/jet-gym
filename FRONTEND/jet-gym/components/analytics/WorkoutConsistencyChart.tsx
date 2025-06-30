@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { getWeek } from 'date-fns';
 
-const screenWidth = Dimensions.get('window').width - 32;
+const screenWidth = Dimensions.get('window').width;
 
 interface WorkoutConsistencyChartProps {
   data: { [weekNumber: number]: number };
@@ -25,14 +26,29 @@ export default function WorkoutConsistencyChart({ data, isLoading = false }: Wor
     );
   }
 
-  // Convert data to chart format
-  const weeks = Object.keys(data).sort((a, b) => parseInt(a) - parseInt(b));
+  const currentWeek = getWeek(new Date(), { weekStartsOn: 1 });
+
+  // Create data for all 52 weeks
+  const fullYearData = Array.from({ length: 52 }, (_, i) => {
+    const weekNumber = i + 1;
+    return data[weekNumber] || 0;
+  });
+
+  const labels = Array.from({ length: 52 }, (_, i) => {
+    const week = i + 1;
+    // Show label for every 4th week to avoid clutter
+    return week % 4 === 1 || week === 1 || week === 52 ? `W${week}` : '';
+  });
+
   const chartData = {
-    labels: weeks.map(week => `W${week}`),
+    labels: labels,
     datasets: [{
-      data: weeks.map(week => data[parseInt(week)] || 0),
+      data: fullYearData,
     }],
   };
+  
+  // Find the maximum number of workouts in a week to set the Y-axis scale
+  const maxWorkouts = Math.max(...fullYearData, 0);
 
   const chartConfig = {
     backgroundColor: '#ffffff',
@@ -48,7 +64,7 @@ export default function WorkoutConsistencyChart({ data, isLoading = false }: Wor
     },
     propsForBackgroundLines: {
       strokeDasharray: '',
-      strokeWidth: 1,
+      strokeWidth: 0.5,
       stroke: '#e1e8ed',
     },
     propsForVerticalLabels: {
@@ -59,10 +75,13 @@ export default function WorkoutConsistencyChart({ data, isLoading = false }: Wor
       fontSize: 10,
       color: '#7f8c8d',
     },
+    barPercentage: 0.5,
   };
 
   const totalWorkouts = Object.values(data).reduce((sum, count) => sum + count, 0);
-  const averageWorkouts = weeks.length > 0 ? totalWorkouts / weeks.length : 0;
+  const averageWorkouts = totalWorkouts > 0 ? totalWorkouts / currentWeek : 0;
+  
+  const chartWidth = 52 * 30; // 52 weeks * 30px per bar
 
   return (
     <View style={styles.container}>
@@ -83,21 +102,26 @@ export default function WorkoutConsistencyChart({ data, isLoading = false }: Wor
       </View>
 
       <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Weekly Workout Frequency</Text>
-        <BarChart
-          data={chartData}
-          width={screenWidth - 32}
-          height={200}
-          chartConfig={chartConfig}
-          style={styles.chart}
-          fromZero={true}
-          yAxisLabel=""
-          yAxisSuffix=""
-          yAxisInterval={1}
-          showBarTops={true}
-          showValuesOnTopOfBars={true}
-        />
-        <Text style={styles.chartSubtitle}>Number of workouts per week</Text>
+        <Text style={styles.chartTitle}>Yearly Workout Frequency</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <BarChart
+            data={chartData}
+            width={chartWidth}
+            height={220}
+            chartConfig={chartConfig}
+            style={styles.chart}
+            fromZero={true}
+            yAxisLabel=""
+            yAxisSuffix=""
+            yAxisInterval={1}
+            showValuesOnTopOfBars={true}
+            segments={maxWorkouts < 4 ? Math.max(1, maxWorkouts) : 4} // Dynamic segments
+          />
+        </ScrollView>
+        <View style={styles.scrollIndicator}>
+            <MaterialCommunityIcons name="arrow-left-right" size={12} color="#7f8c8d" />
+            <Text style={styles.chartSubtitle}>Scroll to see more weeks</Text>
+        </View>
       </View>
     </View>
   );
@@ -167,11 +191,18 @@ const styles = StyleSheet.create({
   },
   chart: {
     borderRadius: 16,
+    paddingRight: 10
+  },
+  scrollIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
   },
   chartSubtitle: {
     fontSize: 12,
     color: '#7f8c8d',
     textAlign: 'center',
-    marginTop: 4,
+    marginLeft: 4,
   },
 }); 
