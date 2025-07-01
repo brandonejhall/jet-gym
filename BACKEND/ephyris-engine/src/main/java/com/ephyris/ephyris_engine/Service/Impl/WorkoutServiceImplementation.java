@@ -97,7 +97,7 @@ public class WorkoutServiceImplementation implements WorkoutService {
             throw new IllegalArgumentException("Invalid workout data");
         }
 
-        List<Workout> workouts = wRepo.findByUserId(userId);
+        List<Workout> workouts = wRepo.findByUserIdOrderByDateDesc(userId);
 
         for (Workout workout : workouts) {
             if (!workout.getUser().getId().equals(userId)) {
@@ -281,7 +281,7 @@ public class WorkoutServiceImplementation implements WorkoutService {
         // Check if user exists
         userService.getUserById(userId);
 
-        List<Workout> workouts = wRepo.findByUserIdAndDateBetween(userId, startDate, endDate);
+        List<Workout> workouts = wRepo.findByUserIdAndDateBetweenOrderByDateDesc(userId, startDate, endDate);
 
         // Verify user has access to all workouts
         for (Workout workout : workouts) {

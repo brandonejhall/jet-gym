@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import AnalyticsWidget from '../../components/AnalyticsWidget';
 import WeeklyStreak from '../../components/WeeklyStreak';
 import Sidebar from '../../components/Sidebar';
@@ -9,7 +10,6 @@ import { router } from 'expo-router';
 import { CacheService } from '@/api/services/cacheservice';
 import { UserData, WorkoutDTO } from '@/api/types';
 import { authService } from '../../api/services/auth';
-import ActivityHeatmap from '../../components/ActivityHeatmap';
 import MonthlyWorkoutCalendar from '../../components/MonthlyWorkoutCalendar';
 
 const emptyWorkoutData = {
@@ -32,7 +32,9 @@ export default function HomeScreen() {
     const today = new Date();
     const day = today.getDay();
     const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-    return new Date(today.setDate(diff));
+    const lastMonday = new Date(today);
+    lastMonday.setDate(today.getDate() + diff);
+    return lastMonday;
   };
 
   const loadLastWorkout = async () => {
@@ -40,13 +42,26 @@ export default function HomeScreen() {
       setLoading(true);
       const workouts = await authService.getWorkouts();
       if (workouts && workouts.length > 0) {
-        const latest = workouts[0];
+        // Sort workouts by date in descending order (most recent first) to ensure we get the latest
+        const sortedWorkouts = workouts.sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateB.getTime() - dateA.getTime(); // Descending order
+        });
+        
+        const latest = sortedWorkouts[0];
+        
+        // Fix timezone issue by using date-only parsing like in WorkoutList
+        const dateString = latest.date?.slice(0, 10); // "2025-06-30"
+        const [year, month, day] = dateString.split('-');
+        const localDate = new Date(Number(year), Number(month) - 1, Number(day));
+        
         setLastWorkout({
           totalSets: latest.exercises?.reduce((acc: number, ex: any) => acc + (ex.sets?.length || 0), 0) || 0,
           totalReps: latest.exercises?.reduce((acc: number, ex: any) => 
             acc + (ex.sets?.reduce((s: number, set: any) => s + set.value, 0) || 0), 0) || 0,
           name: latest.name,
-          date: new Date(latest.date).toLocaleDateString('en-US', {
+          date: localDate.toLocaleDateString('en-US', {
             month: 'long',
             day: 'numeric',
             year: 'numeric'
@@ -73,10 +88,13 @@ export default function HomeScreen() {
       const workouts = await authService.getWorkouts();
       if (workouts && workouts.length > 0) {
         const lastMonday = getLastMonday();
+        const lastMondayStr = lastMonday.toISOString().split('T')[0];
+        
         const completedDays = workouts
           .filter(workout => {
-            const workoutDate = new Date(workout.date);
-            return workoutDate >= lastMonday && workout.completed;
+            // Use date-only comparison to avoid timezone issues
+            const workoutDateStr = workout.date?.slice(0, 10);
+            return workoutDateStr >= lastMondayStr && workout.completed;
           })
           .map(workout => {
             // Convert Sunday = 0 to Sunday = 6, and shift all other days back by 1
@@ -91,9 +109,11 @@ export default function HomeScreen() {
         for (let i = 0; i < 7; i++) {
           const checkDate = new Date(today);
           checkDate.setDate(today.getDate() - i);
+          const checkDateStr = checkDate.toISOString().split('T')[0];
+          
           if (workouts.some(workout => {
-            const workoutDate = new Date(workout.date);
-            return workoutDate.toDateString() === checkDate.toDateString() && workout.completed;
+            const workoutDateStr = workout.date?.slice(0, 10);
+            return workoutDateStr === checkDateStr && workout.completed;
           })) {
             streak++;
           } else {
@@ -112,11 +132,11 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     loadLastWorkout();
     loadUserData();
     calculateDaysCompleted();
-  }, []);
+  }, []));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -135,7 +155,7 @@ export default function HomeScreen() {
         </View>
 
         <AnalyticsWidget lastWorkout={lastWorkout} />
-        <WeeklyStreak completedDays={completedDays} currentStreak={currentStreak} />
+        {/* <WeeklyStreak completedDays={completedDays} currentStreak={currentStreak} /> */}
         <MonthlyWorkoutCalendar />
         
         <View style={styles.buttonContainer}>

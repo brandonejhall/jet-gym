@@ -1,19 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, TouchableOpacity, Text, Modal, FlatList, ScrollView, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useFocusEffect } from '@react-navigation/native';
 import WorkoutList from '../../components/WorkoutList';
 import WorkoutModal from '../../components/WorkoutModal';
-import TimeFilter from '../../components/TimeFilter';
-import { Workout, TimeFilter as TimeFilterType } from '../../types';
-import { workoutService } from '../../api/services/workout';
-import { exerciseService } from '../../api/services/exercise';
 import { WorkoutDTO } from '@/api/types';
+import { workoutService } from '@/api/services/workout';
 import { CacheService } from '@/api/services/cacheservice';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { authService } from '../../api/services/auth';
 
 type FilterType = 'date' | 'month' | 'year';
+type TimeFilterType = 'week' | 'month' | 'year';
 
 interface FilterState {
   type: FilterType;
@@ -298,15 +298,23 @@ const FilterModal = ({
 };
 
 const getStartOfWeek = (date: Date) => {
-  const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
-  return new Date(date.setDate(diff));
+  const newDate = new Date(date); // Create a copy to avoid mutation
+  const day = newDate.getDay();
+  // Calculate days to subtract to get to Monday (1)
+  // Sunday = 0, Monday = 1, Tuesday = 2, etc.
+  const daysToSubtract = day === 0 ? 6 : day - 1; // If Sunday, subtract 6 to get to Monday
+  newDate.setDate(newDate.getDate() - daysToSubtract);
+  // Set time to start of day in local timezone
+  newDate.setHours(0, 0, 0, 0);
+  return newDate;
 };
 
 const getEndOfWeek = (date: Date) => {
   const start = getStartOfWeek(date);
   const end = new Date(start);
-  end.setDate(start.getDate() + 6);
+  end.setDate(start.getDate() + 6); // Add 6 days to get to Sunday
+  // Set time to end of day in local timezone
+  end.setHours(23, 59, 59, 999);
   return end;
 };
 
@@ -338,11 +346,16 @@ export default function WorkoutManagementScreen() {
     if (!userId) return;
     try {
       setLoading(true);
-      const response: WorkoutDTO[] | null = await CacheService.getItem('workouts');
+      // Fetch fresh data from the API instead of relying on cache
+      const response = await authService.getWorkouts();
       setWorkouts(response || []);
+      // Also update the cache with fresh data
+      await CacheService.setItem('workouts', response || []);
     } catch (error) {
       console.error('Failed to load workouts:', error);
-      setWorkouts([]);
+      // Fallback to cache if API fails
+      const cachedWorkouts: WorkoutDTO[] | null = await CacheService.getItem('workouts');
+      setWorkouts(cachedWorkouts || []);
     } finally {
       setLoading(false);
     }
@@ -380,12 +393,20 @@ export default function WorkoutManagementScreen() {
     
     switch(filter) {
       case 'week': {
+        const now = new Date();
         const startOfWeek = getStartOfWeek(new Date());
         const endOfWeek = getEndOfWeek(new Date());
+        
+        // Convert to date strings for comparison using local date methods (YYYY-MM-DD format)
+        const startDateStr = startOfWeek.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+        const endDateStr = endOfWeek.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+        
         const weekWorkouts = workouts.filter(workout => {
-          const workoutDate = new Date(workout.date);
-          return workoutDate >= startOfWeek && workoutDate <= endOfWeek;
+          // Extract just the date part from workout.date (YYYY-MM-DD)
+          const workoutDateStr = workout.date?.slice(0, 10);
+          return workoutDateStr >= startDateStr && workoutDateStr <= endDateStr;
         });
+        
         setDisplayedWorkouts(weekWorkouts);
         setActiveFilter({
           type: 'date',
@@ -400,8 +421,8 @@ export default function WorkoutManagementScreen() {
         const monthWorkouts = workouts.filter(workout => {
           const workoutDate = new Date(workout.date);
           // Compare year and month separately to avoid timezone issues
-          return workoutDate.getUTCFullYear() === now.getUTCFullYear() && 
-                 workoutDate.getUTCMonth() === now.getUTCMonth();
+          return workoutDate.getFullYear() === now.getFullYear() && 
+                 workoutDate.getMonth() === now.getMonth();
         });
         setDisplayedWorkouts(monthWorkouts);
         setActiveFilter({
@@ -484,6 +505,16 @@ export default function WorkoutManagementScreen() {
     // When workouts change, reapply the current time filter
     handleTimeFilterChange(timeFilter);
   }, [workouts]);
+
+  const refreshWorkouts = useCallback(async () => {
+    await loadWorkouts();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshWorkouts();
+    }, [refreshWorkouts])
+  );
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -58,6 +58,10 @@ const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, onPress, onDelete })
     </TouchableOpacity>
   );
 
+  const dateString = workout.date?.slice(0, 10); // "2025-06-30"
+  const [year, month, day] = dateString.split('-');
+  const localDate = new Date(Number(year), Number(month) - 1, Number(day));
+
   return (
     <Swipeable renderRightActions={renderRightActions}>
       <TouchableOpacity
@@ -68,7 +72,9 @@ const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, onPress, onDelete })
           <View style={styles.titleContainer}>
             <Text style={styles.workoutName}>{workout.name}</Text>
           </View>
-          <Text style={styles.workoutDate}>{new Date(workout.date || '').toLocaleDateString()}</Text>
+          <Text style={styles.workoutDate}>
+            {localDate.toLocaleDateString()}
+          </Text>
         </View>
 
         <View
