@@ -11,9 +11,9 @@ import AuthInput from './AuthInput';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const experienceLevels = [
-  { id: 'beginner', label: 'Beginner', icon: 'exercise' },
+  { id: 'beginner', label: 'Beginner', icon: 'dumbbell' },
   { id: 'intermediate', label: 'Intermediate', icon: 'weight-lifter' },
-  { id: 'advanced', label: 'Advanced', icon: 'weight' },
+  { id: 'advanced', label: 'Advanced', icon: 'weight-pound' },
 ];
 
 interface SignUpStep2Props {
@@ -85,10 +85,14 @@ export default function SignUpStep2({ formData, updateFormData, onNext, onBack }
     }
   };
 
-  const handleDateChange = (event: any, selectedDate: { toISOString: () => string; }) => {
+  const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      updateFormData({ birthdate: selectedDate.toISOString().split('T')[0] });
+      // Use local date methods to avoid timezone issues
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      updateFormData({ birthdate: `${year}-${month}-${day}` });
     }
   };
 
@@ -196,7 +200,7 @@ export default function SignUpStep2({ formData, updateFormData, onNext, onBack }
             onPress={() => updateFormData({ experienceLevel: level.id })}
           >
             <MaterialCommunityIcons
-              name={level.icon}
+              name={level.icon as any}
               size={24}
               color={formData.experienceLevel === level.id ? 'white' : '#7f8c8d'}
             />

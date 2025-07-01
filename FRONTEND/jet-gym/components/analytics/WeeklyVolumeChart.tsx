@@ -48,7 +48,12 @@ export default function WeeklyVolumeChart({ data, isLoading = false }: WeeklyVol
   }
 
   // Sort data by week and prepare chart data
-  const sortedData = [...data].sort((a, b) => new Date(a.week).getTime() - new Date(b.week).getTime());
+  const sortedData = [...data].sort((a, b) => {
+    // Parse dates using local timezone to avoid timezone issues
+    const dateA = new Date(a.week + 'T00:00:00');
+    const dateB = new Date(b.week + 'T00:00:00');
+    return dateA.getTime() - dateB.getTime();
+  });
   
   const chartData = {
     labels: sortedData.map(item => {

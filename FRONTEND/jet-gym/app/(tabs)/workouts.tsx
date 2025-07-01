@@ -373,14 +373,21 @@ export default function WorkoutManagementScreen() {
 
   const handleAddWorkout = () => {
     if (!userId) return;
+    const now = new Date();
+    // Use local date methods to avoid timezone issues
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
+    
     const newWorkout: WorkoutDTO = {
       userId: parseInt(userId),
       name: 'New Workout',
-      date: new Date().toISOString(),
+      date: dateString,
       notes: '',
       duration: 0,
-      startTime: new Date().toISOString(),
-      endTime: new Date().toISOString(),
+      startTime: now.toISOString(),
+      endTime: now.toISOString(),
       completed: false,
       exercises: []
     };
@@ -419,10 +426,10 @@ export default function WorkoutManagementScreen() {
       }
       case 'month': {
         const monthWorkouts = workouts.filter(workout => {
-          const workoutDate = new Date(workout.date);
-          // Compare year and month separately to avoid timezone issues
-          return workoutDate.getFullYear() === now.getFullYear() && 
-                 workoutDate.getMonth() === now.getMonth();
+          // Parse date using local timezone to avoid timezone issues
+          const [year, month] = workout.date?.slice(0, 10).split('-');
+          return Number(year) === now.getFullYear() && 
+                 Number(month) === now.getMonth() + 1;
         });
         setDisplayedWorkouts(monthWorkouts);
         setActiveFilter({
@@ -436,8 +443,9 @@ export default function WorkoutManagementScreen() {
       }
       case 'year': {
         const yearWorkouts = workouts.filter(workout => {
-          const workoutDate = new Date(workout.date);
-          return workoutDate.getFullYear() === now.getFullYear();
+          // Parse date using local timezone to avoid timezone issues
+          const [year] = workout.date?.slice(0, 10).split('-');
+          return Number(year) === now.getFullYear();
         });
         setDisplayedWorkouts(yearWorkouts);
         setActiveFilter({
@@ -457,19 +465,20 @@ export default function WorkoutManagementScreen() {
     setFilterModalVisible(false);
     
     const filteredWorkouts = workouts.filter(workout => {
-      const workoutDate = new Date(workout.date);
-      const workoutYear = workoutDate.getFullYear();
-      const workoutMonth = workoutDate.getMonth();
-      const workoutDay = workoutDate.getDate();
+      // Parse date using local timezone to avoid timezone issues
+      const [year, month, day] = workout.date?.slice(0, 10).split('-');
+      const workoutYear = Number(year);
+      const workoutMonth = Number(month);
+      const workoutDay = Number(day);
       
       switch(filter.type) {
         case 'date':
           return workoutYear === filter.year && 
-                 workoutMonth === filter.month && 
+                 workoutMonth === (filter.month ?? 0) + 1 && 
                  workoutDay === filter.day;
         case 'month':
           return workoutYear === filter.year && 
-                 workoutMonth === filter.month;
+                 workoutMonth === (filter.month ?? 0) + 1;
         case 'year':
           return workoutYear === filter.year;
         default:

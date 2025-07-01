@@ -47,7 +47,9 @@ export default function PersonalRecordsSection({ records, isLoading = false }: P
   }
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // Parse date using local timezone to avoid timezone issues
+    const [year, month, day] = dateString.split('-');
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric',

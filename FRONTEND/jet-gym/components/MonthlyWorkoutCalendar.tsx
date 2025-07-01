@@ -42,7 +42,7 @@ const MonthlyWorkoutCalendar: React.FC = () => {
       const dayNumber = index - startingDayIndex + 1;
       const isCurrentMonth = dayNumber > 0 && dayNumber <= totalDays;
       const date = isCurrentMonth 
-        ? new Date(currentYear, currentMonth, dayNumber).toISOString().split('T')[0]
+        ? `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`
         : '';
 
       return {
