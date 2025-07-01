@@ -31,9 +31,13 @@ export default function HomeScreen() {
   const getLastMonday = () => {
     const today = new Date();
     const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    // Calculate days to subtract to get to Monday (1)
+    // Sunday = 0, Monday = 1, Tuesday = 2, etc.
+    const daysToSubtract = day === 0 ? 6 : day - 1; // If Sunday, subtract 6 to get to Monday
     const lastMonday = new Date(today);
-    lastMonday.setDate(today.getDate() + diff);
+    lastMonday.setDate(today.getDate() - daysToSubtract);
+    // Set time to start of day in local timezone
+    lastMonday.setHours(0, 0, 0, 0);
     return lastMonday;
   };
 
@@ -88,7 +92,7 @@ export default function HomeScreen() {
       const workouts = await authService.getWorkouts();
       if (workouts && workouts.length > 0) {
         const lastMonday = getLastMonday();
-        const lastMondayStr = lastMonday.toISOString().split('T')[0];
+        const lastMondayStr = lastMonday.toLocaleDateString('en-CA'); // YYYY-MM-DD format
         
         const completedDays = workouts
           .filter(workout => {
@@ -97,10 +101,17 @@ export default function HomeScreen() {
             return workoutDateStr >= lastMondayStr && workout.completed;
           })
           .map(workout => {
+            // Fix timezone issue by using local date parsing like in WorkoutList
+            const dateString = workout.date?.slice(0, 10); // "2025-06-30"
+            const [year, month, day] = dateString.split('-');
+            const localDate = new Date(Number(year), Number(month) - 1, Number(day));
+            
             // Convert Sunday = 0 to Sunday = 6, and shift all other days back by 1
-            const day = new Date(workout.date).getDay();
-            return day === 0 ? 6 : day - 1;
+            const dayOfWeek = localDate.getDay();
+            const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            return adjustedDay;
           });
+        
         setCompletedDays(completedDays);
         
         // Calculate current streak
@@ -109,7 +120,7 @@ export default function HomeScreen() {
         for (let i = 0; i < 7; i++) {
           const checkDate = new Date(today);
           checkDate.setDate(today.getDate() - i);
-          const checkDateStr = checkDate.toISOString().split('T')[0];
+          const checkDateStr = checkDate.toLocaleDateString('en-CA'); // YYYY-MM-DD format
           
           if (workouts.some(workout => {
             const workoutDateStr = workout.date?.slice(0, 10);
@@ -120,6 +131,7 @@ export default function HomeScreen() {
             break;
           }
         }
+        
         setCurrentStreak(streak);
       } else {
         setCompletedDays([]);
@@ -155,7 +167,7 @@ export default function HomeScreen() {
         </View>
 
         <AnalyticsWidget lastWorkout={lastWorkout} />
-        {/* <WeeklyStreak completedDays={completedDays} currentStreak={currentStreak} /> */}
+        <WeeklyStreak completedDays={completedDays} currentStreak={currentStreak} />
         <MonthlyWorkoutCalendar />
         
         <View style={styles.buttonContainer}>
