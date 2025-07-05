@@ -298,17 +298,21 @@ public class AnalyticsServiceImplementation implements AnalyticsService {
                 allSets.addAll(sets);
             }
 
-            // Find the best set (highest weight * reps)
+            // Find the best set (highest volume)
             Optional<ExerciseSet> bestSet = allSets.stream()
-                    .filter(set -> set.getWeight() != null && set.getValue() != null && !set.getIsTimeBased())
-                    .max(Comparator.comparingDouble(set -> set.getWeight() * set.getValue()));
+                    .filter(set -> set.getCompleted())
+                    .max(Comparator.comparingDouble(set -> calculateSetVolume(set)));
 
             if (bestSet.isPresent()) {
                 ExerciseSet set = bestSet.get();
+                // For time-based exercises, use duration as "reps" and weight as 0
+                double weight = set.getIsTimeBased() ? 0.0 : (set.getWeight() != null ? set.getWeight() : 0.0);
+                int reps = set.getValue() != null ? set.getValue() : 0;
+
                 personalRecords.add(new PersonalRecordDTO(
                         exerciseName,
-                        set.getWeight(),
-                        set.getValue(),
+                        weight,
+                        reps,
                         set.getExercise().getWorkout().getDate(),
                         false // TODO: Implement logic to detect if this is a new PR
                 ));
@@ -316,6 +320,98 @@ public class AnalyticsServiceImplementation implements AnalyticsService {
         }
 
         return personalRecords;
+    }
+
+    /**
+     * Estimates volume for time-based exercises
+     * Uses bodyweight estimation and time duration to calculate approximate volume
+     * 
+     * Formula: Volume = (Duration in minutes) × (Estimated Weight) × (Intensity
+     * Multiplier)
+     * 
+     * @param set The exercise set to calculate volume for
+     * @return Estimated volume in pounds
+     */
+    private double estimateTimeBasedVolume(ExerciseSet set) {
+        if (set.getValue() == null || set.getValue() <= 0) {
+            return 0.0;
+        }
+
+        // For time-based exercises, we estimate volume based on:
+        // 1. Duration (in seconds)
+        // 2. Estimated bodyweight or exercise intensity
+        // 3. Exercise type (if available)
+
+        int durationSeconds = set.getValue();
+        double estimatedWeight = 150.0; // Default bodyweight estimate in lbs
+
+        // If weight is provided (e.g., weighted planks), use it
+        if (set.getWeight() != null && set.getWeight() > 0) {
+            estimatedWeight = set.getWeight();
+        }
+
+        // Calculate volume based on duration and estimated weight
+        // Formula: (duration in minutes) * (estimated weight) * (intensity multiplier)
+        double durationMinutes = durationSeconds / 60.0;
+        double intensityMultiplier = 0.5; // Conservative estimate for time-based exercises
+
+        return durationMinutes * estimatedWeight * intensityMultiplier;
+    }
+
+    /**
+     * Creates a readable date range label for weekly volume data
+     * 
+     * @param startDate The start date of the week
+     * @param endDate   The end date of the week
+     * @return Formatted date range string (e.g., "Jul 1-7")
+     */
+    private String createDateRangeLabel(LocalDate startDate, LocalDate endDate) {
+        // If start and end are in the same month
+        if (startDate.getMonth() == endDate.getMonth()) {
+            return String.format("%s %d-%d",
+                    startDate.getMonth().getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH),
+                    startDate.getDayOfMonth(),
+                    endDate.getDayOfMonth());
+        } else {
+            // If week spans across months
+            return String.format("%s %d-%s %d",
+                    startDate.getMonth().getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH),
+                    startDate.getDayOfMonth(),
+                    endDate.getMonth().getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH),
+                    endDate.getDayOfMonth());
+        }
+    }
+
+    /**
+     * Calculates volume for a single exercise set using the correct industry
+     * standard formula
+     * 
+     * Volume Calculation Rules:
+     * 1. For weight-based exercises: Volume = Weight × Reps
+     * 2. For bodyweight exercises: Volume = (Estimated Bodyweight × 0.5) × Reps
+     * 3. For time-based exercises: Volume = (Duration in minutes) × (Estimated
+     * Weight) × 0.5
+     * 
+     * @param set The exercise set to calculate volume for
+     * @return Volume in pounds
+     */
+    private double calculateSetVolume(ExerciseSet set) {
+        if (set.getValue() == null || set.getValue() <= 0) {
+            return 0.0;
+        }
+
+        if (set.getIsTimeBased()) {
+            return estimateTimeBasedVolume(set);
+        } else {
+            // For weight-based exercises: Volume = Weight × Reps
+            if (set.getWeight() != null && set.getWeight() > 0) {
+                return set.getWeight() * set.getValue();
+            } else {
+                // Bodyweight exercises - estimate based on reps and bodyweight
+                double estimatedBodyweight = 150.0; // Default bodyweight estimate
+                return estimatedBodyweight * set.getValue() * 0.5; // 50% of bodyweight for bodyweight exercises
+            }
+        }
     }
 
     @Override
@@ -330,7 +426,7 @@ public class AnalyticsServiceImplementation implements AnalyticsService {
             // Get workouts for this week
             List<Workout> weekWorkouts = workoutRepository.findByUserIdAndDateBetween(userId, weekStart, weekEnd);
 
-            // Calculate total volume for the week
+            // Calculate total volume for the week using correct formula
             double weeklyVolume = 0.0;
             for (Workout workout : weekWorkouts) {
                 List<Exercise> exercises = exerciseRepository.findAll().stream()
@@ -340,12 +436,11 @@ public class AnalyticsServiceImplementation implements AnalyticsService {
                 for (Exercise exercise : exercises) {
                     List<ExerciseSet> sets = exerciseSetRepository.findAll().stream()
                             .filter(set -> set.getExercise().getId().equals(exercise.getId()))
+                            .filter(set -> set.getCompleted()) // Only count completed sets
                             .collect(Collectors.toList());
 
                     for (ExerciseSet set : sets) {
-                        if (set.getWeight() != null && set.getValue() != null && !set.getIsTimeBased()) {
-                            weeklyVolume += set.getWeight() * set.getValue();
-                        }
+                        weeklyVolume += calculateSetVolume(set);
                     }
                 }
             }
@@ -367,12 +462,11 @@ public class AnalyticsServiceImplementation implements AnalyticsService {
                     for (Exercise exercise : exercises) {
                         List<ExerciseSet> sets = exerciseSetRepository.findAll().stream()
                                 .filter(set -> set.getExercise().getId().equals(exercise.getId()))
+                                .filter(set -> set.getCompleted()) // Only count completed sets
                                 .collect(Collectors.toList());
 
                         for (ExerciseSet set : sets) {
-                            if (set.getWeight() != null && set.getValue() != null && !set.getIsTimeBased()) {
-                                prevWeeklyVolume += set.getWeight() * set.getValue();
-                            }
+                            prevWeeklyVolume += calculateSetVolume(set);
                         }
                     }
                 }
@@ -382,7 +476,8 @@ public class AnalyticsServiceImplementation implements AnalyticsService {
                 }
             }
 
-            String weekLabel = "W" + (weeksBack - i);
+            // Create meaningful date range label
+            String weekLabel = createDateRangeLabel(weekStart, weekEnd);
             weeklyVolumes.add(0, new WeeklyVolumeDTO(weekLabel, weeklyVolume, changeFromPrevious));
         }
 
@@ -413,14 +508,13 @@ public class AnalyticsServiceImplementation implements AnalyticsService {
 
                 List<ExerciseSet> sets = exerciseSetRepository.findAll().stream()
                         .filter(set -> set.getExercise().getId().equals(exercise.getId()))
+                        .filter(set -> set.getCompleted()) // Only count completed sets
                         .collect(Collectors.toList());
 
                 for (ExerciseSet set : sets) {
-                    if (set.getWeight() != null && set.getValue() != null && !set.getIsTimeBased()) {
-                        double volume = set.getWeight() * set.getValue();
-                        muscleVolumes.merge(muscleGroup, volume, Double::sum);
-                        totalVolume += volume;
-                    }
+                    double volume = calculateSetVolume(set);
+                    muscleVolumes.merge(muscleGroup, volume, Double::sum);
+                    totalVolume += volume;
                 }
             }
         }
