@@ -12,10 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AuthInput from '../../components/auth/AuthInput';
-import TermsModal from '../../components/auth/TermsModal';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { authService } from '../../api/services/auth';
 
 const GOALS = [
   { key: 'build_muscle', label: 'Build Muscle', icon: 'arm-flex' },
@@ -24,65 +21,50 @@ const GOALS = [
   { key: 'improve_health', label: 'Improve Health', icon: 'heart-pulse' },
 ];
 
-export default function Signup() {
-  const insets = useSafeAreaInsets();
-  const [fullName, setFullName] = useState('');
+export default function SimplifiedSignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [goal, setGoal] = useState<string | null>(null);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
-  const [hasViewedTerms, setHasViewedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ [k: string]: string }>({});
-  const [showTerms, setShowTerms] = useState(false);
   const router = useRouter();
 
   const validate = () => {
     const newErrors: { [k: string]: string } = {};
-    if (!fullName.trim()) newErrors.fullName = 'Full name is required';
     if (!email.trim()) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email';
     if (!password) newErrors.password = 'Password is required';
     else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
-    if (!confirmPassword) newErrors.confirmPassword = 'Please confirm your password';
-    else if (password !== confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
     if (!goal) newErrors.goal = 'Select a fitness goal';
     if (!agreeToTerms) newErrors.terms = 'You must agree to the terms';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleTermsCheckboxPress = () => {
-    if (!hasViewedTerms) {
-      // First time tapping - show terms modal
-      setShowTerms(true);
-    } else {
-      // Subsequent taps - just toggle the checkbox
-      setAgreeToTerms(!agreeToTerms);
-    }
-  };
-
-  const handleTermsModalClose = () => {
-    setShowTerms(false);
-    setHasViewedTerms(true);
-  };
-
   const handleSubmit = async () => {
     if (!validate()) return;
     setIsLoading(true);
     try {
-      const response = await authService.register({
-        email,
-        password,
-        name: fullName,
-        membershipStatus: 'free'
-        //goal // (if your backend accepts this, otherwise remove)
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, goal }),
       });
-      // Registration successful, redirect to signin
-      router.replace({ pathname: '/signin' });
-    } catch (err: any) {
-      setErrors({ api: err?.message || 'Signup failed' });
+      const data = await response.json();
+      if (!response.ok) {
+        setErrors({ api: data.message || 'Signup failed' });
+        setIsLoading(false);
+        return;
+      }
+      // If profileComplete is false, redirect to CompleteProfile
+      if (data.user && data.user.profileComplete === false) {
+        router.replace({ pathname: '/signin' });
+      } else {
+        router.replace({ pathname: '/signin' });
+      }
+    } catch (err) {
+      setErrors({ api: 'Network error. Please try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -93,34 +75,11 @@ export default function Signup() {
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
-        <ScrollView
-          contentContainerStyle={[styles.scrollContainer, { paddingBottom: 32 + insets.bottom }]}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.replace({ pathname: '/signin' })}
-            accessibilityLabel="Back to Sign In"
-            accessibilityRole="button"
-          >
-            <MaterialCommunityIcons name="arrow-left" size={28} color="#2c3e50" />
-          </TouchableOpacity>
-
+        <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>Sign Up</Text>
           <Text style={styles.subtitle}>Create your JetGym account</Text>
-
-          <AuthInput
-            label="Full Name"
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder="Enter your full name"
-            error={errors.fullName}
-            autoCapitalize="words"
-            icon="account"
-          />
 
           <AuthInput
             label="Email"
@@ -143,16 +102,6 @@ export default function Signup() {
             icon="lock"
           />
 
-          <AuthInput
-            label="Confirm Password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            placeholder="Confirm your password"
-            error={errors.confirmPassword}
-            secureTextEntry
-            icon="lock-check"
-          />
-
           <Text style={styles.sectionLabel}>Fitness Goal</Text>
           <View style={styles.goalsRow}>
             {GOALS.map(g => (
@@ -170,25 +119,23 @@ export default function Signup() {
           </View>
           {errors.goal && <Text style={styles.errorText}>{errors.goal}</Text>}
 
-          <View style={styles.termsRow}>
+          <TouchableOpacity
+            style={styles.termsRow}
+            onPress={() => router.push({ pathname: '/signin' })}
+            activeOpacity={0.7}
+          >
             <TouchableOpacity
               style={[styles.checkbox, agreeToTerms && styles.checkboxChecked]}
-              onPress={handleTermsCheckboxPress}
+              onPress={() => setAgreeToTerms(!agreeToTerms)}
               accessibilityLabel="Agree to terms"
               accessibilityRole="checkbox"
             >
               {agreeToTerms && <MaterialCommunityIcons name="check" size={18} color="white" />}
             </TouchableOpacity>
             <Text style={styles.termsText}>
-              I agree to the{' '}
-              <Text 
-                style={styles.termsLink}
-                onPress={() => setShowTerms(true)}
-              >
-                Terms and Conditions
-              </Text>
+              I agree to the <Text style={styles.termsLink}>Terms and Conditions</Text>
             </Text>
-          </View>
+          </TouchableOpacity>
           {errors.terms && <Text style={styles.errorText}>{errors.terms}</Text>}
 
           {errors.api && <Text style={styles.errorText}>{errors.api}</Text>}
@@ -204,17 +151,12 @@ export default function Signup() {
 
           <View style={styles.loginRow}>
             <Text style={styles.loginText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => router.replace({ pathname: '/signin' })}>
+            <TouchableOpacity onPress={() => router.replace('/signin')}>
               <Text style={styles.loginLink}>Sign In</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <TermsModal
-        visible={showTerms}
-        onClose={handleTermsModalClose}
-      />
     </SafeAreaView>
   );
 }
@@ -342,11 +284,4 @@ const styles = StyleSheet.create({
     color: '#3498db',
     fontWeight: '600',
   },
-  backButton: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    zIndex: 10,
-    padding: 12,
-  },
-});
+}); 

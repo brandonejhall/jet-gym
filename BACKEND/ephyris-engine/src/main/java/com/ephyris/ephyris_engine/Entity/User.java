@@ -36,9 +36,6 @@ public class User implements UserDetails {
     @Column(nullable = false)
     LocalDateTime createdAt;
 
-    @Column(nullable = true)
-    private String profileImage;
-
     @Column(nullable = false)
     private String membershipStatus;
 
