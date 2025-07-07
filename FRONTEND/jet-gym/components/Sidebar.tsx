@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,21 +8,30 @@ import {
   Animated,
   Dimensions,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { router } from 'expo-router';
+import { authService } from '../api/services/auth';
 
 const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.8;
 
+interface SidebarProps {
+  visible: boolean;
+  onClose: () => void;
+}
+
 const menuItems = [
-  { id: 'account', icon: 'account-cog', label: 'Account Settings' },
-  { id: 'preferences', icon: 'cog', label: 'App Preferences' },
-  { id: 'help', icon: 'help-circle', label: 'Help & Support' },
-  { id: 'about', icon: 'information', label: 'About' },
+  { id: 'account', icon: 'account-cog', label: 'Account Settings', route: '/account-settings' },
+  { id: 'preferences', icon: 'cog', label: 'App Preferences', route: '/app-preferences' },
+  { id: 'help', icon: 'help-circle', label: 'Help & Support', route: '/help-support' },
+  { id: 'about', icon: 'information', label: 'About', route: '/about' },
 ];
 
-export default function Sidebar({ visible, onClose }) {
+export default function Sidebar({ visible, onClose }: SidebarProps) {
   const translateX = React.useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
+  const [loggingOut, setLoggingOut] = useState(false);
 
   React.useEffect(() => {
     Animated.timing(translateX, {
@@ -31,6 +40,33 @@ export default function Sidebar({ visible, onClose }) {
       useNativeDriver: true,
     }).start();
   }, [visible]);
+
+  const handleNavigate = (route: string) => {
+    onClose();
+    setTimeout(() => {
+      router.push(route as any);
+    }, 300); // Wait for sidebar to close
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    let timeout;
+    try {
+      // Show loading indicator if logout takes >500ms
+      timeout = setTimeout(() => setLoggingOut(true), 500);
+      await authService.logout();
+      if (typeof localStorage !== 'undefined') localStorage.clear();
+      // If you use any in-memory state (Zustand, Redux), clear it here
+      // Redirect to signin
+      router.replace('/signin');
+    } catch (err) {
+      // Optionally show error
+      setLoggingOut(false);
+    } finally {
+      clearTimeout(timeout);
+      setLoggingOut(false);
+    }
+  };
 
   if (!visible) return null;
 
@@ -72,9 +108,10 @@ export default function Sidebar({ visible, onClose }) {
                 <TouchableOpacity
                   key={item.id}
                   style={styles.menuItem}
+                  onPress={() => handleNavigate(item.route)}
                 >
                   <MaterialCommunityIcons
-                    name={item.icon}
+                    name={item.icon as any}
                     size={24}
                     color="#2c3e50"
                   />
@@ -83,9 +120,10 @@ export default function Sidebar({ visible, onClose }) {
               ))}
             </View>
 
-            <TouchableOpacity style={styles.logoutButton}>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} disabled={loggingOut}>
               <MaterialCommunityIcons name="logout" size={24} color="#e74c3c" />
               <Text style={styles.logoutText}>Logout</Text>
+              {loggingOut && <ActivityIndicator size="small" color="#e74c3c" style={{ marginLeft: 8 }} />}
             </TouchableOpacity>
           </Animated.View>
         </TouchableOpacity>
